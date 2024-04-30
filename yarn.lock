@@ -1805,15 +1805,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tldraw/editor@npm:2.1.3":
-  version: 2.1.3
-  resolution: "@tldraw/editor@npm:2.1.3"
+"@tldraw/editor@npm:2.1.4":
+  version: 2.1.4
+  resolution: "@tldraw/editor@npm:2.1.4"
   dependencies:
-    "@tldraw/state": "npm:2.1.3"
-    "@tldraw/store": "npm:2.1.3"
-    "@tldraw/tlschema": "npm:2.1.3"
-    "@tldraw/utils": "npm:2.1.3"
-    "@tldraw/validate": "npm:2.1.3"
+    "@tldraw/state": "npm:2.1.4"
+    "@tldraw/store": "npm:2.1.4"
+    "@tldraw/tlschema": "npm:2.1.4"
+    "@tldraw/utils": "npm:2.1.4"
+    "@tldraw/validate": "npm:2.1.4"
     "@types/core-js": "npm:^2.5.5"
     "@use-gesture/react": "npm:^10.2.27"
     classnames: "npm:^2.3.2"
@@ -1827,73 +1827,61 @@ __metadata:
   peerDependencies:
     react: ^18
     react-dom: ^18
-  checksum: 2cdf2cfdafd86f715a89e4b61d2f772c3e5e26ccbc95a1cca3af45cd999168d9e14c0cfd7b64e2b92611b6337545a75357a5bfe75c001ecf451308771fd78444
+  checksum: f4696ea78f08763b857f4d2b0cf00c4054be910e85ea7426375bc461b138511b24c51fc8687ecc64a49c6b7cab063b8d5739817367a17bc80245511c7a269123
   languageName: node
   linkType: hard
 
-"@tldraw/state@npm:2.1.3":
-  version: 2.1.3
-  resolution: "@tldraw/state@npm:2.1.3"
+"@tldraw/state@npm:2.1.4":
+  version: 2.1.4
+  resolution: "@tldraw/state@npm:2.1.4"
   peerDependencies:
     react: ^18
-  checksum: ba79349b1604c5b4a20ed11c17994c6c12f1393549804d25e8641ae0775c3b95982a670c5fc4ea7b19ce88fa12c97c96ef0f323b5697d353f9407c7f81a89a26
+  checksum: 0b8b02b5c13f43d2532474da10f37597177a27d0b084dec37a50e2ab36705d60cf84535823bd0720b7d3bc20c5a2d43830fb3f0e5ed02f08fd572b305c9e5e34
   languageName: node
   linkType: hard
 
-"@tldraw/store@npm:2.1.3":
-  version: 2.1.3
-  resolution: "@tldraw/store@npm:2.1.3"
+"@tldraw/store@npm:2.1.4":
+  version: 2.1.4
+  resolution: "@tldraw/store@npm:2.1.4"
   dependencies:
-    "@tldraw/state": "npm:2.1.3"
-    "@tldraw/utils": "npm:2.1.3"
+    "@tldraw/state": "npm:2.1.4"
+    "@tldraw/utils": "npm:2.1.4"
     lodash.isequal: "npm:^4.5.0"
     nanoid: "npm:4.0.2"
   peerDependencies:
     react: ^18
-  checksum: 25f4fbfea9ffa2318710342130cd3fd220addf538cfe2749c1ee9672057b85c651a675f0624a5feb2c06ac25be89e9d8b714467de0d78be4338ad1bf16ef5729
+  checksum: 555502981a9aae8fd63c695ad3608a7af5ba1ee32fa0005f159828f1931df0f9a742247d79e4a80d9dc2c28bdda0505049d080eab752ae8f6abb43bb7a9c85f6
   languageName: node
   linkType: hard
 
-"@tldraw/tldraw@npm:^2.1.1":
-  version: 2.1.3
-  resolution: "@tldraw/tldraw@npm:2.1.3"
+"@tldraw/tlschema@npm:2.1.4":
+  version: 2.1.4
+  resolution: "@tldraw/tlschema@npm:2.1.4"
   dependencies:
-    tldraw: "npm:2.1.3"
-  peerDependencies:
-    react: ^18
-    react-dom: ^18
-  checksum: 1b3c0f4b940c45196c63cf2963f811cd2b5f6a312fbeb08c9d395cfaa37220c22d79cb3b54b6bf4f674bd90a15538a06012ffcf4157bb5fd7fa199bc1a3be276
-  languageName: node
-  linkType: hard
-
-"@tldraw/tlschema@npm:2.1.3":
-  version: 2.1.3
-  resolution: "@tldraw/tlschema@npm:2.1.3"
-  dependencies:
-    "@tldraw/state": "npm:2.1.3"
-    "@tldraw/store": "npm:2.1.3"
-    "@tldraw/utils": "npm:2.1.3"
-    "@tldraw/validate": "npm:2.1.3"
+    "@tldraw/state": "npm:2.1.4"
+    "@tldraw/store": "npm:2.1.4"
+    "@tldraw/utils": "npm:2.1.4"
+    "@tldraw/validate": "npm:2.1.4"
     nanoid: "npm:4.0.2"
   peerDependencies:
     react: ^18
-  checksum: 5e4c5a8a74c9c585b4e1a9d4bc8d940baaed6f0f1256cc442012fa42d73c770abdb56d97d197a00c49cf11680d7f772e43ea97169358a62b417a5008ea8c1cd3
+  checksum: bf4317393e0fdeb5bb37aa3bbe6caee40c6e43cb9e66373b697b5e279ab9d0712474eb188b864f0d851835238b49bfdd7343a5c8836957d53a5030a008935600
   languageName: node
   linkType: hard
 
-"@tldraw/utils@npm:2.1.3":
-  version: 2.1.3
-  resolution: "@tldraw/utils@npm:2.1.3"
-  checksum: 2b29c5dd6c0194f9a79cd008f902a18d36532b206cb65e6a63f9ac5f5b144f10fc9b168e1efe8059404643a1bdb4b9de2e6c8931b3f26aa2c724af8c6dfbc895
+"@tldraw/utils@npm:2.1.4":
+  version: 2.1.4
+  resolution: "@tldraw/utils@npm:2.1.4"
+  checksum: 05782ca2f65f7ef780f3911ebac201fa046e351740e4d6371625e93eb54cd9fc81156cf589de2e6ebfc5056f8901d6f07d6a8cf7495a838e5c6b054c91d4fd27
   languageName: node
   linkType: hard
 
-"@tldraw/validate@npm:2.1.3":
-  version: 2.1.3
-  resolution: "@tldraw/validate@npm:2.1.3"
+"@tldraw/validate@npm:2.1.4":
+  version: 2.1.4
+  resolution: "@tldraw/validate@npm:2.1.4"
   dependencies:
-    "@tldraw/utils": "npm:2.1.3"
-  checksum: a2b0931cf890b65f72e1dc0d2f1ac79205101873b15fc225cf3c44362a239fb9fd186aa140b8df2a88d7f14d65ae56b01f4c45f51dad48d789e5e6a4108eb44f
+    "@tldraw/utils": "npm:2.1.4"
+  checksum: b298eec794d27411454bd340d746a07b8a51f07e1cf51e961c1e52b5f506c7ca8c91744a9721473d059f1498978ab16bda8653234410a42ac6a8421058a6a832
   languageName: node
   linkType: hard
 
@@ -4099,7 +4087,6 @@ __metadata:
   resolution: "tldraw-3d@workspace:."
   dependencies:
     "@biomejs/biome": "npm:1.4.1"
-    "@tldraw/tldraw": "npm:^2.1.1"
     "@types/gh-pages": "npm:^6"
     "@types/p5": "npm:^1.7.6"
     "@types/react": "npm:^18.2.15"
@@ -4111,6 +4098,7 @@ __metadata:
     partykit: "npm:^0.0.27"
     react: "npm:^18.2.0"
     react-dom: "npm:^18.2.0"
+    tldraw: "npm:^2.1.1"
     typescript: "npm:^5.0.2"
     vite: "npm:^4.4.5"
     vite-plugin-top-level-await: "npm:^1.3.1"
@@ -4118,9 +4106,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"tldraw@npm:2.1.3":
-  version: 2.1.3
-  resolution: "tldraw@npm:2.1.3"
+"tldraw@npm:^2.1.1":
+  version: 2.1.4
+  resolution: "tldraw@npm:2.1.4"
   dependencies:
     "@radix-ui/react-alert-dialog": "npm:^1.0.5"
     "@radix-ui/react-context-menu": "npm:^2.1.5"
@@ -4130,8 +4118,8 @@ __metadata:
     "@radix-ui/react-select": "npm:^1.2.0"
     "@radix-ui/react-slider": "npm:^1.1.0"
     "@radix-ui/react-toast": "npm:^1.1.1"
-    "@tldraw/editor": "npm:2.1.3"
-    "@tldraw/store": "npm:2.1.3"
+    "@tldraw/editor": "npm:2.1.4"
+    "@tldraw/store": "npm:2.1.4"
     canvas-size: "npm:^1.2.6"
     classnames: "npm:^2.3.2"
     hotkeys-js: "npm:^3.11.2"
@@ -4139,7 +4127,7 @@ __metadata:
   peerDependencies:
     react: ^18
     react-dom: ^18
-  checksum: 62387ec771b02f17b737ff16f9165fff6461862f6162ad62c3196d4e6982326a9d0b6826642f9b727308124723b7bb99d43f8fc8231a004d9660d4aeadc0d616
+  checksum: 8df820bacece88357803ec0b2f75620a3f32108f436cdca344c1faab9f33dcb3285b48b84e3fe3ff30ae174477de23a8ecd47ead5046c0eacf616a5b138f6db8
   languageName: node
   linkType: hard
 

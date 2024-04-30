@@ -1,7 +1,7 @@
-import { Editor, createShapeId } from "@tldraw/tldraw";
+import { Editor, createShapeId } from "tldraw";
 import p5 from "p5";
 
-export class Underlay {
+export class FallingSand {
   editor: Editor
   p5: p5
   width: number
@@ -17,6 +17,11 @@ export class Underlay {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.world = new Array(this.worldSize * this.worldSize).fill(null);
+
+    editor.store.onAfterChange = (_, next, __) => {
+      if (next.typeName !== 'shape') return;
+      this.setShapesToStone()
+    }
 
     this.editor.createShape({
       id: createShapeId(),
@@ -40,10 +45,6 @@ export class Underlay {
           this.particles.push(sand);
           this.world[y * this.worldSize + x] = sand;
         }
-        this.editor.store.onAfterChange = (prev, next, source) => {
-          if (next.typeName !== 'shape') return;
-          this.setShapesToStone()
-        }
       };
       sketch.draw = () => {
         if (!this.buffer) return;
@@ -57,14 +58,14 @@ export class Underlay {
         this.buffer.scale(cam.z);
         this.buffer.translate(cam.x, cam.y);
 
+        this.buffer.rect(0, 0, this.worldSize * this.cellSize, this.worldSize * this.cellSize);
         // Check if mouse is down and add particles
         if (this.editor.inputs.isPointing) {
-          // const sand = new Sand ()
           if (this.editor.inputs.altKey) {
-            this.addParticleAtPointer(sketch.mouseX, sketch.mouseY, Stone)
+            this.addParticleAtPointer(Stone)
           }
           else {
-            this.addParticleAtPointer(sketch.mouseX, sketch.mouseY, Sand)
+            this.addParticleAtPointer(Sand)
           }
         }
 
@@ -88,21 +89,36 @@ export class Underlay {
   setShapesToStone() {
     const shapes = this.editor.getCurrentPageShapes();
     for (const shape of shapes) {
+      const shapeGeo = this.editor.getShapeGeometry(shape)
+      const vertices = shapeGeo.vertices
+      for (const vertex of vertices) {
+        this.setParticleInPageSpace(shape.x + vertex.x, shape.y + vertex.y, Geo)
+      }
       // this.editor.setShapeProp(shape.id, 'fill', 'stone');
     }
   }
 
-  addParticleAtPointer<T extends Particle>(x: number, y: number, particle: new (...args: any[]) => T) {
-    const cam = this.editor.getCamera();
-    const transformedX = (x - cam.x) / cam.z;
-    const transformedY = (y - cam.y) / cam.z;
+  setParticleInPageSpace(x: number, y: number, particle: new (...args: any[]) => Particle) {
+    const gridX = Math.floor(x / this.cellSize);
+    const gridY = Math.floor(y / this.cellSize);
+    const index = y * this.worldSize + x;
+    if (gridX >= 0 && gridX < this.worldSize && gridY >= 0 && gridY < this.worldSize && !this.world[index]) {
+      const p = new particle(this.p5, gridX, gridY, this.worldSize, this.world)
+      this.particles.push(p);
+      this.world[index] = p;
+    }
+  }
+
+  addParticleAtPointer<T extends Particle>(particle: new (...args: any[]) => T) {
+    const { x: pointerX, y: pointerY } = this.editor.inputs.currentPagePoint
     const numParticles = 10;
     const radius = 10;
+    console.log('adding particles')
 
     for (let i = 0; i < numParticles; i++) {
       const angle = (i / numParticles) * 2 * Math.PI;
-      const particleX = transformedX + radius * Math.cos(angle);
-      const particleY = transformedY + radius * Math.sin(angle);
+      const particleX = pointerX + radius * Math.cos(angle);
+      const particleY = pointerY + radius * Math.sin(angle);
       const gridX = Math.floor(particleX / this.cellSize);
       const gridY = Math.floor(particleY / this.cellSize);
       const index = gridY * this.worldSize + gridX;
@@ -165,8 +181,13 @@ class Sand extends Particle {
 
 class Stone extends Particle {
   color = this.p5.color('grey');
-  // Override the update method to prevent movement
   update() {
-    // Stone does not move, so this method is intentionally left empty
+    // Intentionally left empty
+  }
+}
+class Geo extends Particle {
+  color = this.p5.color('black');
+  update() {
+    // Intentionally left empty
   }
 }

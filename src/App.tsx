@@ -1,19 +1,19 @@
-import { Tldraw } from "@tldraw/tldraw";
-import "@tldraw/tldraw/tldraw.css";
-import { Underlay } from "./Underlay";
-import { Controls } from "./Controls";
+import ReactDOM from "react-dom/client";
+import { Tldraw, Editor } from "tldraw";
+import { FallingSand } from "./FallingSand";
+import "tldraw/tldraw.css";
+import "./css/index.css";
 
-export default function Canvas() {
-	return (
+const root = document.getElementById("root");
+if (root) {
+	ReactDOM.createRoot(root).render(
 		<div className="tldraw__editor">
 			<Tldraw
 				// persistenceKey="fuzzy-canvas"
-				onMount={(editor) => {
-					new Underlay(editor);
+				onMount={(editor: Editor) => {
+					new FallingSand(editor);
 				}}
-			>
-				<Controls />
-			</Tldraw>
+			/>
 		</div>
 	);
 }
