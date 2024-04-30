@@ -31,6 +31,7 @@ export class FallingSand {
       props: {
         w: 100,
         h: 100,
+        fill: 'solid',
       },
     })
     this.p5 = new p5((sketch: p5) => {
@@ -94,14 +95,13 @@ export class FallingSand {
       for (const vertex of vertices) {
         this.setParticleInPageSpace(shape.x + vertex.x, shape.y + vertex.y, Geo)
       }
-      // this.editor.setShapeProp(shape.id, 'fill', 'stone');
     }
   }
 
   setParticleInPageSpace(x: number, y: number, particle: new (...args: any[]) => Particle) {
     const gridX = Math.floor(x / this.cellSize);
     const gridY = Math.floor(y / this.cellSize);
-    const index = y * this.worldSize + x;
+    const index = gridY * this.worldSize + gridX;
     if (gridX >= 0 && gridX < this.worldSize && gridY >= 0 && gridY < this.worldSize && !this.world[index]) {
       const p = new particle(this.p5, gridX, gridY, this.worldSize, this.world)
       this.particles.push(p);
@@ -113,7 +113,6 @@ export class FallingSand {
     const { x: pointerX, y: pointerY } = this.editor.inputs.currentPagePoint
     const numParticles = 10;
     const radius = 10;
-    console.log('adding particles')
 
     for (let i = 0; i < numParticles; i++) {
       const angle = (i / numParticles) * 2 * Math.PI;
