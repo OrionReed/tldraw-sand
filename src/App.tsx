@@ -7,7 +7,7 @@ export default function Canvas() {
 	return (
 		<div className="tldraw__editor">
 			<Tldraw
-				persistenceKey="fuzzy-canvas"
+				// persistenceKey="fuzzy-canvas"
 				onMount={(editor) => {
 					new Underlay(editor);
 				}}
