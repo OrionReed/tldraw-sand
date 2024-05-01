@@ -2,7 +2,7 @@ import { Editor, VecLike } from "tldraw";
 import p5 from "p5";
 import { Geo, Particle, Sand, particles } from "./particles";
 
-type ParticleConstructor = new (p5: p5, x: number, y: number, worldSize: number, world: (Particle | null)[]) => Particle;
+type ParticleConstructor = new (p5: p5, x: number, y: number, worldSize: number, world: (Particle | null)[], sandEnv: FallingSand) => Particle;
 
 class Chunk {
   particles: (Particle | null)[];
@@ -48,7 +48,6 @@ export class FallingSand {
     this.height = window.innerHeight;
     this.chunks = new Map();
 
-
     /** We mirror tldraw geometry to the particle world */
     editor.store.onAfterChange = (_, next, __) => {
       if (next.typeName !== 'shape') return;
@@ -63,6 +62,7 @@ export class FallingSand {
       sketch.setup = () => {
         sketch.createCanvas(this.width, this.height);
         this.buffer = sketch.createGraphics(this.width, this.height);
+        sketch.frameRate(1000);
       };
       sketch.draw = () => {
         if (!this.buffer) return;
@@ -85,7 +85,6 @@ export class FallingSand {
           this.buffer.rect(x, y, width, height);
         }
 
-
         this.handleInputs()
         this.updateParticles()
         this.drawParticles(this.buffer)
@@ -93,6 +92,12 @@ export class FallingSand {
         sketch.image(this.buffer, 0, 0);
       };
     });
+  }
+
+  *chunkValues() {
+    for (const chunk of this.chunks.values()) {
+      yield chunk;
+    }
   }
 
   pageToCell(x: number, y: number): VecLike {
@@ -103,6 +108,7 @@ export class FallingSand {
     return { x: x * this.cellSize, y: y * this.cellSize };
   }
 
+  /** takes coords in cell space */
   getChunk(x: number, y: number): Chunk {
     const chunkX = Math.floor(x / this.chunkSize);
     const chunkY = Math.floor(y / this.chunkSize);
@@ -115,19 +121,16 @@ export class FallingSand {
     return this.chunks.get(key) as Chunk;
   }
 
-  *chunkValues() {
-    for (const chunk of this.chunks.values()) {
-      yield chunk;
-    }
-  }
 
+  /** takes coords in cell space */
   setParticle(x: number, y: number, particleConstructor: ParticleConstructor) {
     const chunk = this.getChunk(x, y);
-    const localX = x % this.chunkSize;
-    const localY = y % this.chunkSize;
-    chunk.setParticle(localX, localY, new particleConstructor(this.p5, x, y, this.chunkSize, chunk.particles));
+    // const localX = x % this.chunkSize;
+    // const localY = y % this.chunkSize;
+    chunk.setParticle(x, y, new particleConstructor(this.p5, x, y, this.chunkSize, chunk.particles, this));
   }
 
+  /** takes coords in cell space */
   getParticle(x: number, y: number): Particle | null {
     const chunk = this.getChunk(x, y);
     const localX = x % this.chunkSize;
@@ -144,7 +147,7 @@ export class FallingSand {
       const type = this.particleTypes[leaf as keyof typeof this.particleTypes]
 
       if (type) {
-        this.addParticleAtPointer(type)
+        this.addParticlesAtPointer(type)
       }
     }
   }
@@ -258,12 +261,11 @@ export class FallingSand {
   }
 
   setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
-    const gridX = Math.floor(x / this.cellSize);
-    const gridY = Math.floor(y / this.cellSize);
-    this.setParticle(gridX, gridY, particle)
+    const cellCoord = this.pageToCell(x, y)
+    this.setParticle(cellCoord.x, cellCoord.y, particle)
   }
 
-  addParticleAtPointer(particle: ParticleConstructor) {
+  addParticlesAtPointer(particle: ParticleConstructor) {
     const { x: pointerX, y: pointerY } = this.editor.inputs.currentPagePoint
     const radius = 50;
 
@@ -271,9 +273,8 @@ export class FallingSand {
       const angle = (i / radius) * 2 * Math.PI;
       const particleX = pointerX + radius * Math.cos(angle);
       const particleY = pointerY + radius * Math.sin(angle);
-      const gridX = Math.floor(particleX / this.cellSize);
-      const gridY = Math.floor(particleY / this.cellSize);
-      this.setParticle(gridX, gridY, particle)
+      const cellCoord = this.pageToCell(particleX, particleY)
+      this.setParticle(cellCoord.x, cellCoord.y, particle)
     }
   }
 }
