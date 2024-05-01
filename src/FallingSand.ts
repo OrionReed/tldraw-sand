@@ -1,5 +1,9 @@
 import { Editor, createShapeId } from "tldraw";
 import p5 from "p5";
+import { SandTool } from "./ui/SandTool";
+import { Geo, Particle, Sand, particles } from "./particles";
+
+type ParticleConstructor = new (p5: p5, x: number, y: number, worldSize: number, world: (Particle | null)[]) => Particle;
 
 export class FallingSand {
   editor: Editor
@@ -11,12 +15,14 @@ export class FallingSand {
   worldSize = 100;
   particles: Particle[] = [];
   world: (Particle | null)[];
+  particleTypes = particles
 
   constructor(editor: Editor) {
     this.editor = editor
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     this.world = new Array(this.worldSize * this.worldSize).fill(null);
+    SandTool.children
 
     editor.store.onAfterChange = (_, next, __) => {
       if (next.typeName !== 'shape') return;
@@ -64,15 +70,13 @@ export class FallingSand {
 
         // Check if mouse is down and add particles
         if (this.editor.getCurrentToolId() === 'sand' && this.editor.inputs.isPointing) {
-          switch (this.editor.getPath()) {
-            case 'sand.sand':
-              this.addParticleAtPointer(Sand)
-              break
-            case 'sand.stone':
-              this.addParticleAtPointer(Stone)
-              break
-            case 'sand.air':
-              break
+          const path = this.editor.getPath() as keyof typeof this.particleTypes;
+          const parts = path.split('.')
+          const leaf = parts[parts.length - 1]
+          const type = this.particleTypes[leaf as keyof typeof this.particleTypes]
+
+          if (type) {
+            this.addParticleAtPointer(type)
           }
         }
 
@@ -104,7 +108,7 @@ export class FallingSand {
     }
   }
 
-  setParticleInPageSpace(x: number, y: number, particle: new (...args: any[]) => Particle) {
+  setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
     const gridX = Math.floor(x / this.cellSize);
     const gridY = Math.floor(y / this.cellSize);
     const index = gridY * this.worldSize + gridX;
@@ -115,7 +119,7 @@ export class FallingSand {
     }
   }
 
-  addParticleAtPointer<T extends Particle>(particle: new (...args: any[]) => T) {
+  addParticleAtPointer(particle: ParticleConstructor) {
     const { x: pointerX, y: pointerY } = this.editor.inputs.currentPagePoint
     const numParticles = 10;
     const radius = 10;
@@ -134,65 +138,5 @@ export class FallingSand {
         this.world[index] = p;
       }
     }
-  }
-}
-
-abstract class Particle {
-  position: p5.Vector;
-  gridSize: number;
-  grid: (Particle | null)[];
-  abstract color: p5.Color;
-
-  constructor(public p5: p5, x: number, y: number, gridSize: number, grid: (Particle | null)[]) {
-    this.position = p5.createVector(x, y);
-    this.gridSize = gridSize;
-    this.grid = grid;
-  }
-
-  abstract update(): void;
-}
-
-class Sand extends Particle {
-  color = this.p5.color(this.p5.random(220, 240), this.p5.random(170, 180), this.p5.random(50, 70));
-  update() {
-    const x = this.position.x;
-    const y = this.position.y;
-    const below = (y + 1) * this.gridSize + x;
-    const belowRight = (y + 1) * this.gridSize + (x + 1);
-    const belowLeft = (y + 1) * this.gridSize + (x - 1);
-
-    // Check and move to the new position if possible
-    if (y + 1 < this.gridSize && this.canMoveTo(below)) {
-      this.moveParticle(x, y + 1, below);
-    } else if (y + 1 < this.gridSize && x + 1 < this.gridSize && this.canMoveTo(belowRight)) {
-      this.moveParticle(x + 1, y + 1, belowRight);
-    } else if (y + 1 < this.gridSize && x - 1 >= 0 && this.canMoveTo(belowLeft)) {
-      this.moveParticle(x - 1, y + 1, belowLeft);
-    }
-  }
-
-  canMoveTo(index: number): boolean {
-    return !this.grid[index]
-  }
-
-  moveParticle(newX: number, newY: number, newIndex: number) {
-    // Update grid references
-    this.grid[this.position.y * this.gridSize + this.position.x] = null;
-    this.position.x = newX;
-    this.position.y = newY;
-    this.grid[newIndex] = this;
-  }
-}
-
-class Stone extends Particle {
-  color = this.p5.color('grey');
-  update() {
-    // Intentionally left empty
-  }
-}
-class Geo extends Particle {
-  color = this.p5.color('black');
-  update() {
-    // Intentionally left empty
   }
 }
