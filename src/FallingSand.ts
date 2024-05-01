@@ -109,7 +109,7 @@ export class FallingSand {
       const x = Math.floor(sketch.random(this.worldSize));
       const y = Math.floor(sketch.random(this.worldSize));
       const sand = new Sand(sketch, x, y, this.worldSize, this.world);
-      this.world[y * this.worldSize + x] = sand;
+      this.world[this.worldIndex(x, y)] = sand;
     }
   }
 
@@ -187,10 +187,14 @@ export class FallingSand {
     }
   }
 
+  worldIndex(x: number, y: number) {
+    return y * this.worldSize + x;
+  }
+
   setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
     const gridX = Math.floor(x / this.cellSize);
     const gridY = Math.floor(y / this.cellSize);
-    const index = gridY * this.worldSize + gridX;
+    const index = this.worldIndex(gridX, gridY);
     if (gridX >= 0 && gridX < this.worldSize && gridY >= 0 && gridY < this.worldSize) {
       const p = new particle(this.p5, gridX, gridY, this.worldSize, this.world)
       this.world[index] = p;
@@ -208,11 +212,10 @@ export class FallingSand {
       const particleY = pointerY + radius * Math.sin(angle);
       const gridX = Math.floor(particleX / this.cellSize);
       const gridY = Math.floor(particleY / this.cellSize);
-      const index = gridY * this.worldSize + gridX;
 
-      if (gridX >= 0 && gridX < this.worldSize && gridY >= 0 && gridY < this.worldSize && !this.world[index]) {
+      if (gridX >= 0 && gridX < this.worldSize && gridY >= 0 && gridY < this.worldSize) {
         const p = new particle(this.p5, gridX, gridY, this.worldSize, this.world)
-        this.world[index] = p;
+        this.world[this.worldIndex(gridX, gridY)] = p;
       }
     }
   }

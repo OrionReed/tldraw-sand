@@ -18,6 +18,10 @@ abstract class Particle {
     return !this.grid[index]
   }
 
+  protected delete() {
+    this.grid[this.position.y * this.gridSize + this.position.x] = null;
+  }
+
   protected moveParticle(newX: number, newY: number, newIndex: number) {
     // Update grid references
     this.grid[this.position.y * this.gridSize + this.position.x] = null;
@@ -59,9 +63,21 @@ class Water extends Particle {
     // Check and move to the new position if possible
     if (y + 1 < this.gridSize && this.canMoveTo(below)) {
       this.moveParticle(x, y + 1, below);
-    } else if (x + 1 < this.gridSize && this.canMoveTo(right)) {
+      return
+    }
+    const canMoveRight = x + 1 < this.gridSize && this.canMoveTo(right);
+    const canMoveLeft = x - 1 >= 0 && this.canMoveTo(left);
+
+    if (canMoveRight && canMoveLeft) {
+      const random = this.p5.random(0, 1);
+      if (random < 0.5) {
+        this.moveParticle(x + 1, y, right);
+      } else {
+        this.moveParticle(x - 1, y, left);
+      }
+    } else if (canMoveRight) {
       this.moveParticle(x + 1, y, right);
-    } else if (x - 1 >= 0 && this.canMoveTo(left)) {
+    } else if (canMoveLeft) {
       this.moveParticle(x - 1, y, left);
     }
   }
@@ -79,12 +95,19 @@ class Geo extends Particle {
     // Intentionally left empty
   }
 }
+class Air extends Particle {
+  color = this.p5.color('red');
+  update() {
+    this.delete();
+  }
+}
 
 export const particles = {
   sand: Sand,
   stone: Stone,
   water: Water,
   geo: Geo,
+  air: Air,
 }
 
-export { Particle, Sand, Stone, Water, Geo }
+export { Particle, Sand, Stone, Water, Geo, Air }
