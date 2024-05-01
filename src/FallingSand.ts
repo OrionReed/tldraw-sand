@@ -1,4 +1,4 @@
-import { Editor, createShapeId } from "tldraw";
+import { Editor } from "tldraw";
 import p5 from "p5";
 import { Geo, Particle, Sand, particles } from "./particles";
 
@@ -194,20 +194,18 @@ export class FallingSand {
   setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
     const gridX = Math.floor(x / this.cellSize);
     const gridY = Math.floor(y / this.cellSize);
-    const index = this.worldIndex(gridX, gridY);
     if (gridX >= 0 && gridX < this.worldSize && gridY >= 0 && gridY < this.worldSize) {
       const p = new particle(this.p5, gridX, gridY, this.worldSize, this.world)
-      this.world[index] = p;
+      this.world[this.worldIndex(gridX, gridY)] = p;
     }
   }
 
   addParticleAtPointer(particle: ParticleConstructor) {
     const { x: pointerX, y: pointerY } = this.editor.inputs.currentPagePoint
-    const numParticles = 10;
-    const radius = 10;
+    const radius = 50;
 
-    for (let i = 0; i < numParticles; i++) {
-      const angle = (i / numParticles) * 2 * Math.PI;
+    for (let i = 0; i < radius; i++) {
+      const angle = (i / radius) * 2 * Math.PI;
       const particleX = pointerX + radius * Math.cos(angle);
       const particleY = pointerY + radius * Math.sin(angle);
       const gridX = Math.floor(particleX / this.cellSize);
