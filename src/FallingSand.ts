@@ -63,14 +63,16 @@ export class FallingSand {
         this.buffer.rect(0, 0, this.worldSize * this.cellSize, this.worldSize * this.cellSize);
 
         // Check if mouse is down and add particles
-        if (this.editor.getCurrentToolId() === 'sand') {
-          if (this.editor.inputs.isPointing) {
-            if (this.editor.inputs.altKey) {
-              this.addParticleAtPointer(Stone)
-            }
-            else {
+        if (this.editor.getCurrentToolId() === 'sand' && this.editor.inputs.isPointing) {
+          switch (this.editor.getPath()) {
+            case 'sand.sand':
               this.addParticleAtPointer(Sand)
-            }
+              break
+            case 'sand.stone':
+              this.addParticleAtPointer(Stone)
+              break
+            case 'sand.air':
+              break
           }
         }
 
