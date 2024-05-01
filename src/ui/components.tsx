@@ -46,7 +46,6 @@ function CustomStylePanel(props: TLUiStylePanelProps) {
       {isSandSelected && currentTool.children && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px' }}>
           {Object.keys(currentTool.children).map((key) => {
-            console.log('mapping')
             return <SandButton key={key} name={key} />
           })
           }

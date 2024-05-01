@@ -74,7 +74,7 @@ class Stone extends Particle {
   }
 }
 class Geo extends Particle {
-  color = this.p5.color('black');
+  color = this.p5.color('#e8e8e8');
   update() {
     // Intentionally left empty
   }
