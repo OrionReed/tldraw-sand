@@ -1,14 +1,13 @@
 import { StateNode } from 'tldraw'
-import { Particle, particles } from '../particles'
+import { particles } from '../particles'
 
-const createParticleNodeClass = (name: string, ParticleClass: typeof Particle) => {
+const createParticleNodeClass = (name: string) => {
   return class extends StateNode {
     static override id = name
   }
 }
 
-const particleNodeClasses = Object.entries(particles).map(([name, ParticleClass]) => createParticleNodeClass(name, ParticleClass))
-
+const particleNodeClasses = Object.keys(particles).map((name) => createParticleNodeClass(name))
 
 export class SandTool extends StateNode {
   static override id = 'sand'
