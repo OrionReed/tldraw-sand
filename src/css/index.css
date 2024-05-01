@@ -1,4 +1,4 @@
-/* @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap"); */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap");
 
 html,
 body {
@@ -25,79 +25,10 @@ html,
 	overflow: hidden;
 }
 
-.examples {
-	padding: 16px;
-}
-
-.examples__header {
-	width: fit-content;
-	padding-bottom: 32px;
-}
-
-.examples__lockup {
-	height: 56px;
-	width: auto;
-}
-
-.examples__list {
-	display: flex;
-	flex-direction: column;
-	padding: 0;
-	margin: 0;
-	list-style: none;
-}
-
-.examples__list__item {
-	padding: 8px 12px;
-	margin: 0px -12px;
-}
-
-.examples__list__item a {
-	padding: 8px 12px;
-	margin: 0px -12px;
-	text-decoration: none;
-	color: inherit;
-}
-
-.examples__list__item a:hover {
-	text-decoration: underline;
-}
-
 .tl-background {
 	background-color: transparent;
 }
 
 canvas {
 	z-index: 10000;
-}
-
-.controls {
-	pointer-events: "all";
-	position: absolute;
-	left: 50%;
-	transform: translateX(-50%);
-	z-index: 999999;
-}
-
-.controls button {
-	margin: 4px;
-	margin-top: 8px;
-	padding: 8px;
-	border: none;
-	background-color: #5b646d;
-	color: white;
-	font-size: 16px;
-	border-radius: 4px;
-	cursor: pointer;
-	transition:
-		background-color 0.3s,
-		transform 0.3s;
-}
-.controls button:hover {
-	background-color: #768594;
-	transform: scale(1.05);
-}
-.controls button:focus {
-	outline: none;
-	box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.5);
 }

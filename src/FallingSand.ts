@@ -59,14 +59,18 @@ export class FallingSand {
         this.buffer.scale(cam.z);
         this.buffer.translate(cam.x, cam.y);
 
+        // draw debug outline
         this.buffer.rect(0, 0, this.worldSize * this.cellSize, this.worldSize * this.cellSize);
+
         // Check if mouse is down and add particles
-        if (this.editor.inputs.isPointing) {
-          if (this.editor.inputs.altKey) {
-            this.addParticleAtPointer(Stone)
-          }
-          else {
-            this.addParticleAtPointer(Sand)
+        if (this.editor.getCurrentToolId() === 'sand') {
+          if (this.editor.inputs.isPointing) {
+            if (this.editor.inputs.altKey) {
+              this.addParticleAtPointer(Stone)
+            }
+            else {
+              this.addParticleAtPointer(Sand)
+            }
           }
         }
 
