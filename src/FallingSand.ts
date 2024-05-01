@@ -1,8 +1,32 @@
-import { Editor } from "tldraw";
+import { Editor, VecLike } from "tldraw";
 import p5 from "p5";
 import { Geo, Particle, Sand, particles } from "./particles";
 
 type ParticleConstructor = new (p5: p5, x: number, y: number, worldSize: number, world: (Particle | null)[]) => Particle;
+
+class Chunk {
+  particles: (Particle | null)[];
+  x: number;
+  y: number;
+  chunkSize: number;
+
+  constructor(x: number, y: number, chunkSize: number) {
+    this.x = x;
+    this.y = y;
+    this.chunkSize = chunkSize;
+    this.particles = new Array(chunkSize * chunkSize).fill(null);
+  }
+
+  getParticle(x: number, y: number): Particle | null {
+    const index = y * this.chunkSize + x;
+    return this.particles[index];
+  }
+
+  setParticle(x: number, y: number, particle: Particle): void {
+    const index = y * this.chunkSize + x;
+    this.particles[index] = particle;
+  }
+}
 
 export class FallingSand {
   editor: Editor
@@ -10,16 +34,20 @@ export class FallingSand {
   width: number
   height: number
   buffer: p5.Graphics | null = null
+  /** The size of each cell in page space */
   cellSize = 10;
-  worldSize = 200;
-  world: (Particle | null)[];
-  particleTypes = particles
+  /** The size of each chunk in cells */
+  chunkSize = 100;
+  /** The chunks of the world, all coordinates are in cell space */
+  chunks: Map<string, Chunk>;
+  particleTypes = particles;
 
   constructor(editor: Editor) {
     this.editor = editor
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    this.world = new Array(this.worldSize * this.worldSize).fill(null);
+    this.chunks = new Map();
+
 
     /** We mirror tldraw geometry to the particle world */
     editor.store.onAfterChange = (_, next, __) => {
@@ -35,8 +63,6 @@ export class FallingSand {
       sketch.setup = () => {
         sketch.createCanvas(this.width, this.height);
         this.buffer = sketch.createGraphics(this.width, this.height);
-
-        this.createRandomSand(sketch)
       };
       sketch.draw = () => {
         if (!this.buffer) return;
@@ -51,7 +77,13 @@ export class FallingSand {
         this.buffer.translate(cam.x, cam.y);
 
         // draw debug outline
-        this.buffer.rect(0, 0, this.worldSize * this.cellSize, this.worldSize * this.cellSize);
+        for (const chunk of this.chunkValues()) {
+          const x = chunk.x * this.chunkSize * this.cellSize;
+          const y = chunk.y * this.chunkSize * this.cellSize;
+          const width = this.chunkSize * this.cellSize;
+          const height = this.chunkSize * this.cellSize;
+          this.buffer.rect(x, y, width, height);
+        }
 
 
         this.handleInputs()
@@ -61,6 +93,46 @@ export class FallingSand {
         sketch.image(this.buffer, 0, 0);
       };
     });
+  }
+
+  pageToCell(x: number, y: number): VecLike {
+    return { x: Math.floor(x / this.cellSize), y: Math.floor(y / this.cellSize) };
+  }
+
+  cellToPage(x: number, y: number): VecLike {
+    return { x: x * this.cellSize, y: y * this.cellSize };
+  }
+
+  getChunk(x: number, y: number): Chunk {
+    const chunkX = Math.floor(x / this.chunkSize);
+    const chunkY = Math.floor(y / this.chunkSize);
+    const key = `${chunkX},${chunkY}`;
+
+    if (!this.chunks.has(key)) {
+      this.chunks.set(key, new Chunk(chunkX, chunkY, this.chunkSize));
+    }
+
+    return this.chunks.get(key) as Chunk;
+  }
+
+  *chunkValues() {
+    for (const chunk of this.chunks.values()) {
+      yield chunk;
+    }
+  }
+
+  setParticle(x: number, y: number, particleConstructor: ParticleConstructor) {
+    const chunk = this.getChunk(x, y);
+    const localX = x % this.chunkSize;
+    const localY = y % this.chunkSize;
+    chunk.setParticle(localX, localY, new particleConstructor(this.p5, x, y, this.chunkSize, chunk.particles));
+  }
+
+  getParticle(x: number, y: number): Particle | null {
+    const chunk = this.getChunk(x, y);
+    const localX = x % this.chunkSize;
+    const localY = y % this.chunkSize;
+    return chunk.getParticle(localX, localY);
   }
 
   handleInputs() {
@@ -78,17 +150,20 @@ export class FallingSand {
   }
 
   updateParticles() {
-    // Update particles
-    for (let y = this.worldSize - 1; y >= 0; y--) {
-      if (y % 2 === 0) {
-        for (let x = 0; x < this.worldSize; x++) {
-          const particle = this.world[y * this.worldSize + x];
-          if (particle) particle.update();
-        }
-      } else {
-        for (let x = this.worldSize - 1; x >= 0; x--) {
-          const particle = this.world[y * this.worldSize + x];
-          if (particle) particle.update();
+    // Iterate over each chunk in the world map
+    for (const chunk of this.chunkValues()) {
+      // Update particles
+      for (let y = this.chunkSize - 1; y >= 0; y--) {
+        if (y % 2 === 0) {
+          for (let x = 0; x < this.chunkSize; x++) {
+            const particle = chunk.particles[y * this.chunkSize + x];
+            if (particle) particle.update();
+          }
+        } else {
+          for (let x = this.chunkSize - 1; x >= 0; x--) {
+            const particle = chunk.particles[y * this.chunkSize + x];
+            if (particle) particle.update();
+          }
         }
       }
     }
@@ -96,28 +171,23 @@ export class FallingSand {
 
   drawParticles(buffer: p5.Graphics) {
     buffer.noStroke();
-    for (const cell of this.world) {
-      if (cell) {
-        buffer.fill(cell.color);
-        buffer.rect(cell.position.x * this.cellSize, cell.position.y * this.cellSize, this.cellSize, this.cellSize);
+    for (const chunk of this.chunkValues()) {
+      for (const cell of chunk.particles) {
+        if (cell) {
+          buffer.fill(cell.color);
+          buffer.rect(cell.position.x * this.cellSize, cell.position.y * this.cellSize, this.cellSize, this.cellSize);
+        }
       }
-    }
-  }
-
-  createRandomSand(sketch: p5) {
-    for (let i = 0; i < 500; i++) {
-      const x = Math.floor(sketch.random(this.worldSize));
-      const y = Math.floor(sketch.random(this.worldSize));
-      const sand = new Sand(sketch, x, y, this.worldSize, this.world);
-      this.world[this.worldIndex(x, y)] = sand;
     }
   }
 
   updateSolidShapes() {
     // Clear existing Geo particles
-    for (let i = 0; i < this.world.length; i++) {
-      if (this.world[i] && this.world[i] instanceof Geo) {
-        this.world[i] = null;
+    for (const chunk of this.chunkValues()) {
+      for (let i = 0; i < chunk.particles.length; i++) {
+        if (chunk.particles[i] && chunk.particles[i] instanceof Geo) {
+          chunk.particles[i] = null;
+        }
       }
     }
 
@@ -187,17 +257,10 @@ export class FallingSand {
     }
   }
 
-  worldIndex(x: number, y: number) {
-    return y * this.worldSize + x;
-  }
-
   setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
     const gridX = Math.floor(x / this.cellSize);
     const gridY = Math.floor(y / this.cellSize);
-    if (gridX >= 0 && gridX < this.worldSize && gridY >= 0 && gridY < this.worldSize) {
-      const p = new particle(this.p5, gridX, gridY, this.worldSize, this.world)
-      this.world[this.worldIndex(gridX, gridY)] = p;
-    }
+    this.setParticle(gridX, gridY, particle)
   }
 
   addParticleAtPointer(particle: ParticleConstructor) {
@@ -210,11 +273,7 @@ export class FallingSand {
       const particleY = pointerY + radius * Math.sin(angle);
       const gridX = Math.floor(particleX / this.cellSize);
       const gridY = Math.floor(particleY / this.cellSize);
-
-      if (gridX >= 0 && gridX < this.worldSize && gridY >= 0 && gridY < this.worldSize) {
-        const p = new particle(this.p5, gridX, gridY, this.worldSize, this.world)
-        this.world[this.worldIndex(gridX, gridY)] = p;
-      }
+      this.setParticle(gridX, gridY, particle)
     }
   }
 }
