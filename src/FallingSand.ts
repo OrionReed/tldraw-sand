@@ -2,7 +2,6 @@ import { Editor } from "tldraw"
 import { Geo, Particle, Sand, particles } from "./particles"
 
 type ParticleConstructor = new (
-	p5: p5,
 	x: number,
 	y: number,
 	worldSize: number,
@@ -13,9 +12,9 @@ export class FallingSand {
 	editor: Editor
 	canvas: HTMLCanvasElement
 	ctx: CanvasRenderingContext2D
+	buffer: CanvasRenderingContext2D
 	width: number
 	height: number
-	buffer: p5.Graphics | null = null
 	cellSize = 5
 	worldSize = 200
 	world: (Particle | null)[]
@@ -27,6 +26,22 @@ export class FallingSand {
 		this.height = window.innerHeight
 		this.world = new Array(this.worldSize * this.worldSize).fill(null)
 
+		this.canvas = document.createElement("canvas")
+		const offscreenCanvas = document.createElement("canvas")
+		offscreenCanvas.width = this.width
+		offscreenCanvas.height = this.height
+		this.canvas.width = this.width
+		this.canvas.height = this.height
+		const offscreenCtx = offscreenCanvas.getContext("2d")
+		const ctx = this.canvas.getContext("2d")
+		if (!ctx || !offscreenCtx) throw new Error("Could not get context")
+		this.buffer = offscreenCtx
+		this.ctx = ctx
+
+		if (this.ctx) {
+			document.body.appendChild(this.canvas)
+		}
+
 		/** We mirror tldraw geometry to the particle world */
 		editor.store.onAfterChange = (_, next, __) => {
 			if (next.typeName !== "shape") return
@@ -37,40 +52,38 @@ export class FallingSand {
 			this.updateSolidShapes()
 		}
 
-		this.p5 = new p5((sketch: p5) => {
-			sketch.setup = () => {
-				sketch.createCanvas(this.width, this.height)
-				this.buffer = sketch.createGraphics(this.width, this.height)
+		this.createRandomSand()
+		requestAnimationFrame(() => this.draw())
+	}
 
-				this.createRandomSand(sketch)
-			}
-			sketch.draw = () => {
-				if (!this.buffer) return
+	draw() {
+		if (!this.buffer) return
 
-				this.buffer.push()
-				this.buffer.clear()
-				this.buffer.background("white")
+		// Clear the buffer and main canvas
+		this.buffer.clearRect(0, 0, this.width, this.height)
+		this.ctx.clearRect(0, 0, this.width, this.height)
 
-				// Align buffer with tldraw camera/scene
-				const cam = this.editor.getCamera()
-				this.buffer.scale(cam.z)
-				this.buffer.translate(cam.x, cam.y)
+		// Align buffer with tldraw camera/scene
+		const cam = this.editor.getCamera()
+		this.buffer.setTransform(cam.z, 0, 0, cam.z, cam.x, cam.y)
 
-				// draw debug outline
-				this.buffer.rect(
-					0,
-					0,
-					this.worldSize * this.cellSize,
-					this.worldSize * this.cellSize,
-				)
+		// Draw debug outline
+		this.buffer.strokeStyle = "black"
+		this.buffer.strokeRect(
+			0,
+			0,
+			this.worldSize * this.cellSize,
+			this.worldSize * this.cellSize,
+		)
 
-				this.handleInputs()
-				this.updateParticles()
-				this.drawParticles(this.buffer)
-				this.buffer.pop()
-				sketch.image(this.buffer, 0, 0)
-			}
-		})
+		this.handleInputs()
+		this.updateParticles()
+		this.drawParticles()
+
+		this.ctx.setTransform(1, 0, 0, 1, 0, 0)
+		this.buffer.setTransform(1, 0, 0, 1, 0, 0)
+		this.ctx.drawImage(this.buffer.canvas, 0, 0)
+		requestAnimationFrame(() => this.draw())
 	}
 
 	handleInputs() {
@@ -107,12 +120,13 @@ export class FallingSand {
 		}
 	}
 
-	drawParticles(buffer: p5.Graphics) {
-		buffer.noStroke()
+	drawParticles() {
+		console.log("drawing particles")
+		if (!this.buffer) return
 		for (const cell of this.world) {
 			if (cell) {
-				buffer.fill(cell.color)
-				buffer.rect(
+				this.buffer.fillStyle = cell.color
+				this.buffer.fillRect(
 					cell.position.x * this.cellSize,
 					cell.position.y * this.cellSize,
 					this.cellSize,
@@ -122,11 +136,11 @@ export class FallingSand {
 		}
 	}
 
-	createRandomSand(sketch: p5) {
+	createRandomSand() {
 		for (let i = 0; i < 500; i++) {
-			const x = Math.floor(sketch.random(this.worldSize))
-			const y = Math.floor(sketch.random(this.worldSize))
-			const sand = new Sand(sketch, x, y, this.worldSize, this.world)
+			const x = Math.floor(Math.random() * this.worldSize)
+			const y = Math.floor(Math.random() * this.worldSize)
+			const sand = new Sand(x, y, this.worldSize, this.world)
 			this.world[this.worldIndex(x, y)] = sand
 		}
 	}
@@ -231,7 +245,7 @@ export class FallingSand {
 			gridY >= 0 &&
 			gridY < this.worldSize
 		) {
-			const p = new particle(this.p5, gridX, gridY, this.worldSize, this.world)
+			const p = new particle(gridX, gridY, this.worldSize, this.world)
 			this.world[this.worldIndex(gridX, gridY)] = p
 		}
 	}
@@ -253,13 +267,7 @@ export class FallingSand {
 				gridY >= 0 &&
 				gridY < this.worldSize
 			) {
-				const p = new particle(
-					this.p5,
-					gridX,
-					gridY,
-					this.worldSize,
-					this.world,
-				)
+				const p = new particle(gridX, gridY, this.worldSize, this.world)
 				this.world[this.worldIndex(gridX, gridY)] = p
 			}
 		}
