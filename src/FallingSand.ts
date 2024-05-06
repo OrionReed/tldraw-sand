@@ -9,14 +9,16 @@ type ParticleConstructor = new (
 ) => Particle
 
 export class FallingSand {
+	CELL_SIZE = 5
+	WORLD_SIZE = 200
+	BRUSH_RADIUS = 5
+
 	editor: Editor
 	canvas: HTMLCanvasElement
 	ctx: CanvasRenderingContext2D
 	buffer: CanvasRenderingContext2D
 	width: number
 	height: number
-	cellSize = 5
-	worldSize = 200
 	world: (Particle | null)[]
 	particleTypes = particles
 	shuffledIndices: number[]
@@ -25,7 +27,7 @@ export class FallingSand {
 		this.editor = editor
 		this.width = window.innerWidth
 		this.height = window.innerHeight
-		this.world = new Array(this.worldSize * this.worldSize).fill(null)
+		this.world = new Array(this.WORLD_SIZE * this.WORLD_SIZE).fill(null)
 		this.shuffledIndices = this.generateShuffledIndices()
 
 		this.canvas = document.createElement("canvas")
@@ -74,8 +76,8 @@ export class FallingSand {
 		this.buffer.strokeRect(
 			0,
 			0,
-			this.worldSize * this.cellSize,
-			this.worldSize * this.cellSize,
+			this.WORLD_SIZE * this.CELL_SIZE,
+			this.WORLD_SIZE * this.CELL_SIZE,
 		)
 
 		this.handleInputs()
@@ -98,10 +100,10 @@ export class FallingSand {
 			}
 		}
 		// Pre-generate shuffled indices for the entire world
-		for (let y = this.worldSize - 1; y >= 0; y--) {
+		for (let y = this.WORLD_SIZE - 1; y >= 0; y--) {
 			const rowIndices = Array.from(
-				{ length: this.worldSize },
-				(_, i) => y * this.worldSize + i,
+				{ length: this.WORLD_SIZE },
+				(_, i) => y * this.WORLD_SIZE + i,
 			)
 			shuffleArray(rowIndices)
 			shuffledIndices.push(...rowIndices)
@@ -109,20 +111,46 @@ export class FallingSand {
 		return shuffledIndices
 	}
 
+	previousPointer: { x: number; y: number } | null = { x: 0, y: 0 }
+
 	handleInputs() {
 		// Check if mouse is down and add particles
 		if (
 			this.editor.getCurrentToolId() === "sand" &&
-			this.editor.inputs.isPointing
+			this.editor.inputs.isPointing &&
+			// only left click though!
+			this.editor.inputs.buttons.has(0)
 		) {
 			const path = this.editor.getPath() as keyof typeof this.particleTypes
 			const parts = path.split(".")
 			const leaf = parts[parts.length - 1]
 			const type = this.particleTypes[leaf as keyof typeof this.particleTypes]
 
-			if (type) {
-				this.addParticleAtPointer(type)
+			const currentPointer = this.editor.inputs.currentPagePoint
+			if (this.previousPointer) {
+				// if pointer has moved, add particles along the path
+				// console.log("moved");
+				if (
+					currentPointer.x !== this.previousPointer.x ||
+					currentPointer.y !== this.previousPointer.y
+				) {
+					const dx = currentPointer.x - this.previousPointer.x
+					const dy = currentPointer.y - this.previousPointer.y
+					const distance = Math.sqrt(dx ** 2 + dy ** 2)
+					const steps = Math.max(1, Math.floor(distance / this.CELL_SIZE))
+					for (let i = 0; i < steps; i++) {
+						const x = this.previousPointer.x + (dx * i) / steps
+						const y = this.previousPointer.y + (dy * i) / steps
+						this.addParticleAtPoint(type, { x, y })
+					}
+				}
 			}
+			if (type) {
+				this.addParticleAtPoint(type, currentPointer)
+			}
+			this.previousPointer = { x: currentPointer.x, y: currentPointer.y }
+		} else {
+			this.previousPointer = null
 		}
 	}
 
@@ -141,10 +169,10 @@ export class FallingSand {
 			if (cell) {
 				this.buffer.fillStyle = cell.color
 				this.buffer.fillRect(
-					cell.position.x * this.cellSize,
-					cell.position.y * this.cellSize,
-					this.cellSize,
-					this.cellSize,
+					cell.position.x * this.CELL_SIZE,
+					cell.position.y * this.CELL_SIZE,
+					this.CELL_SIZE,
+					this.CELL_SIZE,
 				)
 			}
 		}
@@ -152,9 +180,9 @@ export class FallingSand {
 
 	createRandomSand() {
 		for (let i = 0; i < 500; i++) {
-			const x = Math.floor(Math.random() * this.worldSize)
-			const y = Math.floor(Math.random() * this.worldSize)
-			const sand = new Sand(x, y, this.worldSize, this.world)
+			const x = Math.floor(Math.random() * this.WORLD_SIZE)
+			const y = Math.floor(Math.random() * this.WORLD_SIZE)
+			const sand = new Sand(x, y, this.WORLD_SIZE, this.world)
 			this.world[this.worldIndex(x, y)] = sand
 		}
 	}
@@ -197,8 +225,8 @@ export class FallingSand {
 
 				// Iterate over the bounding box and fill the shape
 				for (
-					let y = Math.floor(minY / this.cellSize);
-					y <= Math.floor(maxY / this.cellSize);
+					let y = Math.floor(minY / this.CELL_SIZE);
+					y <= Math.floor(maxY / this.CELL_SIZE);
 					y++
 				) {
 					const intersections: number[] = []
@@ -206,23 +234,23 @@ export class FallingSand {
 						const v1 = rotatedVertices[i]
 						const v2 = rotatedVertices[(i + 1) % rotatedVertices.length]
 						if (
-							(v1.y < y * this.cellSize && v2.y >= y * this.cellSize) ||
-							(v2.y < y * this.cellSize && v1.y >= y * this.cellSize)
+							(v1.y < y * this.CELL_SIZE && v2.y >= y * this.CELL_SIZE) ||
+							(v2.y < y * this.CELL_SIZE && v1.y >= y * this.CELL_SIZE)
 						) {
 							const x =
 								v1.x +
-								((y * this.cellSize - v1.y) / (v2.y - v1.y)) * (v2.x - v1.x)
+								((y * this.CELL_SIZE - v1.y) / (v2.y - v1.y)) * (v2.x - v1.x)
 							intersections.push(x)
 						}
 					}
 					intersections.sort((a, b) => a - b)
 					for (let i = 0; i < intersections.length; i += 2) {
-						const startX = Math.floor(intersections[i] / this.cellSize)
-						const endX = Math.floor(intersections[i + 1] / this.cellSize)
+						const startX = Math.floor(intersections[i] / this.CELL_SIZE)
+						const endX = Math.floor(intersections[i + 1] / this.CELL_SIZE)
 						for (let x = startX; x <= endX; x++) {
 							this.setParticleInPageSpace(
-								x * this.cellSize,
-								y * this.cellSize,
+								x * this.CELL_SIZE,
+								y * this.CELL_SIZE,
 								Geo,
 							)
 						}
@@ -235,7 +263,7 @@ export class FallingSand {
 					const v2 = rotatedVertices[i + 1]
 					const dx = v2.x - v1.x
 					const dy = v2.y - v1.y
-					const steps = Math.max(Math.abs(dx), Math.abs(dy)) / this.cellSize
+					const steps = Math.max(Math.abs(dx), Math.abs(dy)) / this.CELL_SIZE
 					for (let t = 0; t <= steps; t++) {
 						const x = v1.x + (dx * t) / steps
 						const y = v1.y + (dy * t) / steps
@@ -247,42 +275,42 @@ export class FallingSand {
 	}
 
 	worldIndex(x: number, y: number) {
-		return y * this.worldSize + x
+		return y * this.WORLD_SIZE + x
 	}
 
 	setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
-		const gridX = Math.floor(x / this.cellSize)
-		const gridY = Math.floor(y / this.cellSize)
+		const gridX = Math.floor(x / this.CELL_SIZE)
+		const gridY = Math.floor(y / this.CELL_SIZE)
 		if (
 			gridX >= 0 &&
-			gridX < this.worldSize &&
+			gridX < this.WORLD_SIZE &&
 			gridY >= 0 &&
-			gridY < this.worldSize
+			gridY < this.WORLD_SIZE
 		) {
-			const p = new particle(gridX, gridY, this.worldSize, this.world)
+			const p = new particle(gridX, gridY, this.WORLD_SIZE, this.world)
 			this.world[this.worldIndex(gridX, gridY)] = p
 		}
 	}
 
-	addParticleAtPointer(particle: ParticleConstructor) {
-		const { x: pointerX, y: pointerY } = this.editor.inputs.currentPagePoint
-		const radius = 50
+	addParticleAtPoint(
+		particle: ParticleConstructor,
+		point: { x: number; y: number },
+	) {
+		const { x: pointerX, y: pointerY } = point
+		const radius = this.BRUSH_RADIUS
 
-		for (let i = 0; i < radius; i++) {
-			const angle = (i / radius) * 2 * Math.PI
-			const particleX = pointerX + radius * Math.cos(angle)
-			const particleY = pointerY + radius * Math.sin(angle)
-			const gridX = Math.floor(particleX / this.cellSize)
-			const gridY = Math.floor(particleY / this.cellSize)
+		const pointerGridX = Math.floor(pointerX / this.CELL_SIZE)
+		const pointerGridY = Math.floor(pointerY / this.CELL_SIZE)
 
-			if (
-				gridX >= 0 &&
-				gridX < this.worldSize &&
-				gridY >= 0 &&
-				gridY < this.worldSize
-			) {
-				const p = new particle(gridX, gridY, this.worldSize, this.world)
-				this.world[this.worldIndex(gridX, gridY)] = p
+		for (let y = pointerGridY - radius; y < pointerGridY + radius; y++) {
+			for (let x = pointerGridX - radius; x < pointerGridX + radius; x++) {
+				const distance = Math.sqrt(
+					(x - pointerGridX) ** 2 + (y - pointerGridY) ** 2,
+				)
+				if (distance < radius) {
+					const p = new particle(x, y, this.WORLD_SIZE, this.world)
+					this.world[this.worldIndex(x, y)] = p
+				}
 			}
 		}
 	}
