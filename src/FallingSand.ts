@@ -10,8 +10,8 @@ export class FallingSand {
   width: number
   height: number
   buffer: p5.Graphics | null = null
-  cellSize = 10;
-  worldSize = 200;
+  cellSize = 3;
+  worldSize = 500;
   world: (Particle | null)[];
   particleTypes = particles
 

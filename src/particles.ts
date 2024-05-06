@@ -57,14 +57,25 @@ class Water extends Particle {
     const x = this.position.x;
     const y = this.position.y;
     const below = (y + 1) * this.gridSize + x;
+    const belowRight = (y + 1) * this.gridSize + (x + 1);
+    const belowLeft = (y + 1) * this.gridSize + (x - 1);
     const right = y * this.gridSize + (x + 1);
     const left = y * this.gridSize + (x - 1);
 
     // Check and move to the new position if possible
     if (y + 1 < this.gridSize && this.canMoveTo(below)) {
       this.moveParticle(x, y + 1, below);
-      return
+      return;
     }
+    if (y + 1 < this.gridSize && x + 1 < this.gridSize && this.canMoveTo(belowRight)) {
+      this.moveParticle(x + 1, y + 1, belowRight);
+      return;
+    }
+    if (y + 1 < this.gridSize && x - 1 >= 0 && this.canMoveTo(belowLeft)) {
+      this.moveParticle(x - 1, y + 1, belowLeft);
+      return;
+    }
+
     const canMoveRight = x + 1 < this.gridSize && this.canMoveTo(right);
     const canMoveLeft = x - 1 >= 0 && this.canMoveTo(left);
 
