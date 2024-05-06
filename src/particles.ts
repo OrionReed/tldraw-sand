@@ -4,19 +4,19 @@ function randRange(min: number, max: number): number {
 
 abstract class Particle {
 	position: { x: number; y: number }
-	gridSize: number
+	worldSize: number
 	grid: (Particle | null)[]
 	abstract color: string
 
 	constructor(
 		x: number,
 		y: number,
-		gridSize: number,
-		grid: (Particle | null)[],
+		worldSize: number,
+		world: (Particle | null)[],
 	) {
 		this.position = { x, y }
-		this.gridSize = gridSize
-		this.grid = grid
+		this.worldSize = worldSize
+		this.grid = world
 	}
 
 	abstract update(): void
@@ -24,23 +24,34 @@ abstract class Particle {
 	/** Get the index relative to this particle */
 	protected idx(xOffset: number, yOffset: number): number {
 		return (
-			(this.position.y + yOffset) * this.gridSize + (this.position.x + xOffset)
+			(this.position.y + yOffset) * this.worldSize + (this.position.x + xOffset)
 		)
 	}
 
-	protected canMoveTo(index: number): boolean {
-		return !this.grid[index]
+	/** Check if the new position is valid, relative to current position */
+	protected canMoveTo(x: number, y: number): boolean {
+		const newX = this.position.x + x
+		const newY = this.position.y + y
+		if (
+			newX < 0 ||
+			newX > this.worldSize ||
+			newY < 0 ||
+			newY >= this.worldSize
+		) {
+			return false
+		}
+		return !this.grid[newY * this.worldSize + newX]
 	}
 
 	protected delete() {
-		this.grid[this.position.y * this.gridSize + this.position.x] = null
+		this.grid[this.position.y * this.worldSize + this.position.x] = null
 	}
 
-	protected moveParticle(newX: number, newY: number) {
-		this.grid[this.position.y * this.gridSize + this.position.x] = null
-		this.position.x = newX
-		this.position.y = newY
-		this.grid[newY * this.gridSize + newX] = this
+	protected moveParticle(xOffset: number, yOffset: number) {
+		this.grid[this.position.y * this.worldSize + this.position.x] = null
+		this.position.x = this.position.x + xOffset
+		this.position.y = this.position.y + yOffset
+		this.grid[this.position.y * this.worldSize + this.position.x] = this
 	}
 }
 
@@ -51,27 +62,12 @@ class Sand extends Particle {
 	)}%)`
 
 	update() {
-		const x = this.position.x
-		const y = this.position.y
-		const below = this.idx(0, 1)
-		const belowRight = this.idx(1, 1)
-		const belowLeft = this.idx(-1, 1)
-
-		// Check and move to the new position if possible
-		if (y + 1 < this.gridSize && this.canMoveTo(below)) {
-			this.moveParticle(x, y + 1)
-		} else if (
-			y + 1 < this.gridSize &&
-			x + 1 < this.gridSize &&
-			this.canMoveTo(belowRight)
-		) {
-			this.moveParticle(x + 1, y + 1)
-		} else if (
-			y + 1 < this.gridSize &&
-			x - 1 >= 0 &&
-			this.canMoveTo(belowLeft)
-		) {
-			this.moveParticle(x - 1, y + 1)
+		if (this.canMoveTo(0, 1)) {
+			this.moveParticle(0, 1)
+		} else if (this.canMoveTo(1, 1)) {
+			this.moveParticle(1, 1)
+		} else if (this.canMoveTo(-1, 1)) {
+			this.moveParticle(-1, 1)
 		}
 	}
 }
@@ -79,46 +75,16 @@ class Water extends Particle {
 	color = `hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`
 
 	update() {
-		const x = this.position.x
-		const y = this.position.y
-		const below = (y + 1) * this.gridSize + x
-		const belowRight = (y + 1) * this.gridSize + (x + 1)
-		const belowLeft = (y + 1) * this.gridSize + (x - 1)
-		const right = y * this.gridSize + (x + 1)
-		const left = y * this.gridSize + (x - 1)
-
-		// Check and move to the new position if possible
-		if (y + 1 < this.gridSize && this.canMoveTo(below)) {
-			this.moveParticle(x, y + 1, below)
-			return
-		}
-		if (
-			y + 1 < this.gridSize &&
-			x + 1 < this.gridSize &&
-			this.canMoveTo(belowRight)
-		) {
-			this.moveParticle(x + 1, y + 1, belowRight)
-			return
-		}
-		if (y + 1 < this.gridSize && x - 1 >= 0 && this.canMoveTo(belowLeft)) {
-			this.moveParticle(x - 1, y + 1, belowLeft)
-			return
-		}
-
-		const canMoveRight = x + 1 < this.gridSize && this.canMoveTo(right)
-		const canMoveLeft = x - 1 >= 0 && this.canMoveTo(left)
-
-		if (canMoveRight && canMoveLeft) {
-			const random = Math.random()
-			if (random < 0.5) {
-				this.moveParticle(x + 1, y, right)
-			} else {
-				this.moveParticle(x - 1, y, left)
-			}
-		} else if (canMoveRight) {
-			this.moveParticle(x + 1, y, right)
-		} else if (canMoveLeft) {
-			this.moveParticle(x - 1, y, left)
+		if (this.canMoveTo(0, 1)) {
+			this.moveParticle(0, 1)
+		} else if (this.canMoveTo(1, 1)) {
+			this.moveParticle(1, 1)
+		} else if (this.canMoveTo(-1, 1)) {
+			this.moveParticle(-1, 1)
+		} else if (this.canMoveTo(-1, 0)) {
+			this.moveParticle(-1, 0)
+		} else if (this.canMoveTo(1, 0)) {
+			this.moveParticle(1, 0)
 		}
 	}
 }

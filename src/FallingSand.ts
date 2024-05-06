@@ -284,10 +284,11 @@ export class FallingSand {
 	}
 
 	setParticleInSandSpace(x: number, y: number, particle: ParticleConstructor) {
-		if (x >= 0 && x < this.WORLD_SIZE && y >= 0 && y < this.WORLD_SIZE) {
-			const p = new particle(x, y, this.WORLD_SIZE, this.world)
-			this.world[this.worldIndex(x, y)] = p
+		if (x < 0 || x >= this.WORLD_SIZE || y < 0 || y >= this.WORLD_SIZE) {
+			return
 		}
+		const p = new particle(x, y, this.WORLD_SIZE, this.world)
+		this.world[this.worldIndex(x, y)] = p
 	}
 
 	addBrushParticles(
