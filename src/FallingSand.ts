@@ -19,12 +19,14 @@ export class FallingSand {
 	worldSize = 200
 	world: (Particle | null)[]
 	particleTypes = particles
+	shuffledIndices: number[]
 
 	constructor(editor: Editor) {
 		this.editor = editor
 		this.width = window.innerWidth
 		this.height = window.innerHeight
 		this.world = new Array(this.worldSize * this.worldSize).fill(null)
+		this.shuffledIndices = this.generateShuffledIndices()
 
 		this.canvas = document.createElement("canvas")
 		const offscreenCanvas = document.createElement("canvas")
@@ -86,6 +88,27 @@ export class FallingSand {
 		requestAnimationFrame(() => this.draw())
 	}
 
+	generateShuffledIndices() {
+		const shuffledIndices: number[] = []
+		// Helper method to shuffle an array in-place using Fisher-Yates algorithm
+		function shuffleArray(array: number[]) {
+			for (let i = array.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1))
+				;[array[i], array[j]] = [array[j], array[i]]
+			}
+		}
+		// Pre-generate shuffled indices for the entire world
+		for (let y = this.worldSize - 1; y >= 0; y--) {
+			const rowIndices = Array.from(
+				{ length: this.worldSize },
+				(_, i) => y * this.worldSize + i,
+			)
+			shuffleArray(rowIndices)
+			shuffledIndices.push(...rowIndices)
+		}
+		return shuffledIndices
+	}
+
 	handleInputs() {
 		// Check if mouse is down and add particles
 		if (
@@ -104,25 +127,10 @@ export class FallingSand {
 	}
 
 	updateParticles() {
-		// Generate shuffled indices for the entire world
-		const shuffledIndices = Array.from(
-			{ length: this.world.length },
-			(_, i) => i,
-		)
-		this.shuffleArray(shuffledIndices)
-
 		// Update particles in the shuffled order
-		for (const index of shuffledIndices) {
+		for (const index of this.shuffledIndices) {
 			const particle = this.world[index]
 			if (particle) particle.update()
-		}
-	}
-
-	// Helper method to shuffle an array in-place using Fisher-Yates algorithm
-	shuffleArray(array: number[]) {
-		for (let i = array.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1))
-			;[array[i], array[j]] = [array[j], array[i]]
 		}
 	}
 
