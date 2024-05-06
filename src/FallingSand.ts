@@ -1,4 +1,4 @@
-import { Editor } from "tldraw"
+import { Editor, TLCamera } from "tldraw"
 import {
 	Air,
 	Cell,
@@ -24,7 +24,7 @@ export class FallingSand {
 	particleTypes = particles
 	shuffledIndices: number[]
 	isTickFrame = false
-	isWorldDirty = true
+	dirtyIndices: Set<number> = new Set()
 
 	constructor(editor: Editor) {
 		this.editor = editor
@@ -38,7 +38,7 @@ export class FallingSand {
 			const y = Math.floor(i / this.WORLD_SIZE)
 			this.world[i] = {
 				particle: new Air(x, y, this.world),
-				changed: false,
+				dirty: false,
 			}
 		}
 
@@ -96,15 +96,20 @@ export class FallingSand {
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z, // destination width
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z, // destination height
 		)
-		// Draw debug outline
-		this.ctx.strokeStyle = this.isWorldDirty ? "red" : "grey"
+
+		this.debugOutline(cam)
+
+		requestAnimationFrame(() => this.tick())
+	}
+
+	debugOutline(cam: TLCamera) {
+		this.ctx.strokeStyle = this.dirtyIndices.size > 0 ? "red" : "green"
 		this.ctx.strokeRect(
 			cam.x * cam.z,
 			cam.y * cam.z,
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z,
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z,
 		)
-		requestAnimationFrame(() => this.tick())
 	}
 
 	generateShuffledIndices() {
@@ -131,11 +136,9 @@ export class FallingSand {
 	previousPointer: { x: number; y: number } | null = { x: 0, y: 0 }
 
 	handleInputs() {
-		// Check if mouse is down and add particles
 		if (
 			this.editor.getCurrentToolId() === "sand" &&
 			this.editor.inputs.isPointing &&
-			// only left click though!
 			this.editor.inputs.buttons.has(0)
 		) {
 			const path = this.editor.getPath() as keyof typeof this.particleTypes
@@ -170,10 +173,15 @@ export class FallingSand {
 	}
 
 	updateParticles() {
+		this.dirtyIndices.clear()
 		for (const index of this.shuffledIndices) {
 			const cell = this.world[index]
 			if (cell.particle.isTickCycle !== this.isTickFrame) {
+				cell.dirty = false
 				cell.particle.update()
+				if (this.world[index].dirty) {
+					this.dirtyIndices.add(index)
+				}
 				cell.particle.isTickCycle = this.isTickFrame
 			}
 		}
@@ -189,11 +197,18 @@ export class FallingSand {
 		const data = imageData.data
 
 		for (const cell of this.world) {
-			if (!cell.changed) continue
+			// if (!cell.dirty) continue
 			const index =
 				(cell.particle.position.y * this.WORLD_SIZE +
 					cell.particle.position.x) *
 				4
+			if (cell.dirty) {
+				data[index] = 200
+				data[index + 1] = 0
+				data[index + 2] = 0
+				data[index + 3] = 200
+				continue
+			}
 			if (cell.particle instanceof Air) {
 				data[index] = 255
 				data[index + 1] = 255
@@ -218,7 +233,7 @@ export class FallingSand {
 			const sand = new Sand(x, y, this.world)
 			this.world[this.worldIndex(x, y)] = {
 				particle: sand,
-				changed: true,
+				dirty: true,
 			}
 		}
 	}
@@ -234,7 +249,7 @@ export class FallingSand {
 					particle.position.y,
 					this.world,
 				)
-				cell.changed = true
+				cell.dirty = true
 			}
 		}
 
@@ -334,7 +349,7 @@ export class FallingSand {
 		const p = new particle(x, y, this.world)
 		this.world[this.worldIndex(x, y)] = {
 			particle: p,
-			changed: true,
+			dirty: true,
 		}
 	}
 

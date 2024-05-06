@@ -21,7 +21,7 @@ class AirPool {
 
 type Cell = {
 	particle: Particle
-	changed: boolean
+	dirty: boolean
 }
 
 type ParticleConstructor = new (x: number, y: number, world: Cell[]) => Particle
@@ -37,7 +37,6 @@ abstract class Particle {
 
 	position: { x: number; y: number }
 	isTickCycle = false
-	isDirty = false
 
 	private _colorRGB?: { r: number; g: number; b: number }
 
@@ -47,11 +46,12 @@ abstract class Particle {
 		this.world = world
 	}
 
-	protected getCellAtIndex(index: number): Cell {
-		return this.world[index]
+	protected getParticleAtIndex(index: number): Particle {
+		return this.world[index].particle
 	}
-	protected setCellAtIndex(index: number, cell: Cell) {
-		this.world[index] = cell
+	protected setParticleAtIndex(index: number, particle: Particle) {
+		this.world[index].particle = particle
+		this.world[index].dirty = true
 	}
 
 	get colorRGB(): { r: number; g: number; b: number } {
@@ -109,13 +109,13 @@ abstract class Particle {
 		nextCell.particle.position.y = this.position.y
 		this.world[this.idx(0, 0)] = {
 			particle: nextCell.particle,
-			changed: true,
+			dirty: true,
 		}
 		this.position.x = newPosition.x
 		this.position.y = newPosition.y
 		this.world[this.idx(0, 0)] = {
 			particle: this,
-			changed: true,
+			dirty: true,
 		}
 	}
 	/** Replace target with this, and current with air */
@@ -133,13 +133,13 @@ abstract class Particle {
 				this.position.y,
 				this.world,
 			),
-			changed: true,
+			dirty: true,
 		}
 		this.position.x = newPosition.x
 		this.position.y = newPosition.y
 		this.world[this.idx(0, 0)] = {
 			particle: this,
-			changed: true,
+			dirty: true,
 		}
 	}
 }
@@ -171,9 +171,7 @@ class Acid extends Particle {
 	}
 
 	canSwapWith(offsetX: number, offsetY: number): boolean {
-		return (
-			this.getCellAtIndex(this.idx(offsetX, offsetY))?.particle instanceof Water
-		)
+		return this.getParticleAtIndex(this.idx(offsetX, offsetY)) instanceof Water
 	}
 
 	dissolveNearby() {
@@ -184,14 +182,14 @@ class Acid extends Particle {
 			[0, 1],
 		]) {
 			if (this.canDissolve(dx, dy)) {
-				this.setCellAtIndex(this.idx(dx, dy), {
-					changed: true,
-					particle: Particle.airPool.getAir(
+				this.setParticleAtIndex(
+					this.idx(dx, dy),
+					Particle.airPool.getAir(
 						this.position.x + dx,
 						this.position.y + dy,
 						this.world,
 					),
-				})
+				)
 			}
 		}
 	}
@@ -301,10 +299,7 @@ class Plant extends Particle {
 			this.world,
 		)
 		newPlant.energy = this.energy
-		this.world[this.idx(x, y)] = {
-			particle: newPlant,
-			changed: true,
-		}
+		this.setParticleAtIndex(this.idx(x, y), newPlant)
 	}
 
 	// Plants absorb water to grow
@@ -323,14 +318,14 @@ class Plant extends Particle {
 		for (const [dx, dy] of directions) {
 			if (this.canAbsorb(dx, dy)) {
 				this.energy++
-				this.world[this.idx(dx, dy)] = {
-					changed: true,
-					particle: Particle.airPool.getAir(
+				this.setParticleAtIndex(
+					this.idx(dx, dy),
+					Particle.airPool.getAir(
 						this.position.x + dx,
 						this.position.y + dy,
 						this.world,
 					),
-				}
+				)
 			}
 		}
 	}
@@ -351,10 +346,10 @@ class Steam extends Particle {
 	}
 
 	condense() {
-		this.world[this.position.y * this.worldSize + this.position.x] = {
-			changed: true,
-			particle: new Water(this.position.x, this.position.y, this.world),
-		}
+		this.setParticleAtIndex(
+			this.position.y * this.worldSize + this.position.x,
+			new Water(this.position.x, this.position.y, this.world),
+		)
 	}
 
 	disperse() {
