@@ -9,7 +9,7 @@ type ParticleConstructor = new (
 ) => Particle
 
 export class FallingSand {
-	CELL_SIZE = 5
+	CELL_SIZE = 2
 	WORLD_SIZE = 500
 	BRUSH_RADIUS = 5
 
@@ -161,7 +161,7 @@ export class FallingSand {
 	updateParticles() {
 		for (const index of this.shuffledIndices) {
 			const cell = this.world[index]
-			if (cell.particle instanceof Air) {
+			if (cell.particle instanceof Air || !cell.changed) {
 				cell.changed = false
 				continue
 			}

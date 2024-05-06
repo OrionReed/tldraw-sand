@@ -4,7 +4,7 @@ function randRange(min: number, max: number): number {
 
 export { type Cell, Particle, Sand, Stone, Water, Geo, Air }
 
-class ParticlePool {
+class AirPool {
 	private airPool: Air[] = []
 
 	getAir(x: number, y: number, worldSize: number, world: Cell[]): Air {
@@ -31,7 +31,7 @@ type Cell = {
 }
 
 abstract class Particle {
-	static particlePool = new ParticlePool()
+	static airPool = new AirPool()
 	position: { x: number; y: number }
 	worldSize: number
 	world: Cell[]
@@ -91,7 +91,7 @@ abstract class Particle {
 	protected delete() {
 		this.world[this.position.y * this.worldSize + this.position.x] = {
 			changed: true,
-			particle: Particle.particlePool.getAir(
+			particle: Particle.airPool.getAir(
 				this.position.x,
 				this.position.y,
 				this.worldSize,
@@ -100,10 +100,14 @@ abstract class Particle {
 		}
 	}
 
+	protected chance(percent: number): boolean {
+		return Math.random() < percent
+	}
+
 	protected moveParticle(xOffset: number, yOffset: number) {
 		this.world[this.position.y * this.worldSize + this.position.x] = {
 			changed: true,
-			particle: Particle.particlePool.getAir(
+			particle: Particle.airPool.getAir(
 				this.position.x,
 				this.position.y,
 				this.worldSize,
@@ -122,16 +126,16 @@ abstract class Particle {
 			x: this.position.x + xOffset,
 			y: this.position.y + yOffset,
 		}
-		const nextParticle =
-			this.world[newPosition.y * this.worldSize + newPosition.x].particle
-		// set current position to particle at next position
-		this.world[this.position.y * this.worldSize + this.position.x] = {
-			particle: nextParticle,
+		const nextCell = this.world[this.idx(xOffset, yOffset)]
+		nextCell.particle.position.x = this.position.x
+		nextCell.particle.position.y = this.position.y
+		this.world[this.idx(0, 0)] = {
+			particle: nextCell.particle,
 			changed: true,
 		}
 		this.position.x = newPosition.x
 		this.position.y = newPosition.y
-		this.world[newPosition.y * this.worldSize + newPosition.x] = {
+		this.world[this.idx(0, 0)] = {
 			particle: this,
 			changed: true,
 		}
@@ -144,13 +148,21 @@ class Sand extends Particle {
 		80,
 	)}%)`
 
+	canSwapWith(offsetX: number, offsetY: number): boolean {
+		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Water
+	}
+
 	update() {
 		if (this.canMoveTo(0, 1)) {
-			this.swapParticle(0, 1)
+			this.moveParticle(0, 1)
 		} else if (this.canMoveTo(1, 1)) {
 			this.swapParticle(1, 1)
 		} else if (this.canMoveTo(-1, 1)) {
 			this.swapParticle(-1, 1)
+		} else if (this.canSwapWith(0, 1)) {
+			if (this.chance(0.3)) {
+				this.swapParticle(0, 1)
+			}
 		}
 	}
 }
@@ -177,7 +189,7 @@ class Stone extends Particle {
 	update() {}
 }
 class Geo extends Particle {
-	colorHSL = "hsl(0, 0%, 40%)"
+	colorHSL = "hsl(0, 0%, 80%)"
 	update() {}
 }
 class Air extends Particle {
