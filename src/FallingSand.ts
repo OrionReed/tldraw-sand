@@ -56,7 +56,7 @@ export class FallingSand {
 			this.updateSolidShapes()
 		}
 
-		this.createRandomSand()
+		this.createRandomDebugSand()
 		requestAnimationFrame(() => this.draw())
 	}
 
@@ -69,7 +69,8 @@ export class FallingSand {
 
 		// Align buffer with tldraw camera/scene
 		const cam = this.editor.getCamera()
-		this.buffer.setTransform(cam.z, 0, 0, cam.z, cam.x, cam.y)
+		this.buffer.scale(cam.z, cam.z)
+		this.buffer.translate(cam.x, cam.y)
 
 		// Draw debug outline
 		this.buffer.strokeStyle = "black"
@@ -84,6 +85,7 @@ export class FallingSand {
 		this.updateParticles()
 		this.drawParticles()
 
+		// Reset transformations for main canvas
 		this.ctx.setTransform(1, 0, 0, 1, 0, 0)
 		this.buffer.setTransform(1, 0, 0, 1, 0, 0)
 		this.ctx.drawImage(this.buffer.canvas, 0, 0)
@@ -128,8 +130,6 @@ export class FallingSand {
 
 			const currentPointer = this.editor.inputs.currentPagePoint
 			if (this.previousPointer) {
-				// if pointer has moved, add particles along the path
-				// console.log("moved");
 				if (
 					currentPointer.x !== this.previousPointer.x ||
 					currentPointer.y !== this.previousPointer.y
@@ -141,12 +141,12 @@ export class FallingSand {
 					for (let i = 0; i < steps; i++) {
 						const x = this.previousPointer.x + (dx * i) / steps
 						const y = this.previousPointer.y + (dy * i) / steps
-						this.addParticleAtPoint(type, { x, y })
+						this.addBrushParticles(type, { x, y })
 					}
 				}
 			}
 			if (type) {
-				this.addParticleAtPoint(type, currentPointer)
+				this.addBrushParticles(type, currentPointer)
 			}
 			this.previousPointer = { x: currentPointer.x, y: currentPointer.y }
 		} else {
@@ -163,7 +163,6 @@ export class FallingSand {
 	}
 
 	drawParticles() {
-		console.log("drawing particles")
 		if (!this.buffer) return
 		for (const cell of this.world) {
 			if (cell) {
@@ -178,7 +177,7 @@ export class FallingSand {
 		}
 	}
 
-	createRandomSand() {
+	createRandomDebugSand() {
 		for (let i = 0; i < 500; i++) {
 			const x = Math.floor(Math.random() * this.WORLD_SIZE)
 			const y = Math.floor(Math.random() * this.WORLD_SIZE)
@@ -281,18 +280,17 @@ export class FallingSand {
 	setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
 		const gridX = Math.floor(x / this.CELL_SIZE)
 		const gridY = Math.floor(y / this.CELL_SIZE)
-		if (
-			gridX >= 0 &&
-			gridX < this.WORLD_SIZE &&
-			gridY >= 0 &&
-			gridY < this.WORLD_SIZE
-		) {
-			const p = new particle(gridX, gridY, this.WORLD_SIZE, this.world)
-			this.world[this.worldIndex(gridX, gridY)] = p
+		this.setParticleInSandSpace(gridX, gridY, particle)
+	}
+
+	setParticleInSandSpace(x: number, y: number, particle: ParticleConstructor) {
+		if (x >= 0 && x < this.WORLD_SIZE && y >= 0 && y < this.WORLD_SIZE) {
+			const p = new particle(x, y, this.WORLD_SIZE, this.world)
+			this.world[this.worldIndex(x, y)] = p
 		}
 	}
 
-	addParticleAtPoint(
+	addBrushParticles(
 		particle: ParticleConstructor,
 		point: { x: number; y: number },
 	) {
@@ -308,8 +306,7 @@ export class FallingSand {
 					(x - pointerGridX) ** 2 + (y - pointerGridY) ** 2,
 				)
 				if (distance < radius) {
-					const p = new particle(x, y, this.WORLD_SIZE, this.world)
-					this.world[this.worldIndex(x, y)] = p
+					this.setParticleInSandSpace(x, y, particle)
 				}
 			}
 		}
