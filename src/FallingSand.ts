@@ -1,17 +1,19 @@
 import { Editor } from "tldraw"
-import { Air, Cell, Geo, Particle, Sand, particles } from "./particles"
-
-type ParticleConstructor = new (
-	x: number,
-	y: number,
-	worldSize: number,
-	world: Cell[],
-) => Particle
+import {
+	Air,
+	Cell,
+	Geo,
+	ParticleConstructor,
+	Sand,
+	particles,
+} from "./particles"
+import { chance } from "./utils"
 
 export class FallingSand {
 	CELL_SIZE = 2
 	WORLD_SIZE = 500
-	BRUSH_RADIUS = 5
+	BRUSH_RADIUS = 10
+	BRUSH_CHANCE = 0.3
 
 	editor: Editor
 	ctx: CanvasRenderingContext2D
@@ -22,6 +24,7 @@ export class FallingSand {
 	particleTypes = particles
 	shuffledIndices: number[]
 	isTickFrame = false
+	isWorldDirty = true
 
 	constructor(editor: Editor) {
 		this.editor = editor
@@ -34,7 +37,7 @@ export class FallingSand {
 			const x = i % this.WORLD_SIZE
 			const y = Math.floor(i / this.WORLD_SIZE)
 			this.world[i] = {
-				particle: new Air(x, y, this.WORLD_SIZE, this.world),
+				particle: new Air(x, y, this.world),
 				changed: false,
 			}
 		}
@@ -66,10 +69,10 @@ export class FallingSand {
 		}
 
 		this.createRandomDebugSand()
-		requestAnimationFrame(() => this.draw())
+		requestAnimationFrame(() => this.tick())
 	}
 
-	draw() {
+	tick() {
 		this.isTickFrame = !this.isTickFrame
 		if (!this.offscreenCtx) return
 
@@ -94,14 +97,14 @@ export class FallingSand {
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z, // destination height
 		)
 		// Draw debug outline
-		this.ctx.strokeStyle = "grey"
+		this.ctx.strokeStyle = this.isWorldDirty ? "red" : "grey"
 		this.ctx.strokeRect(
 			cam.x * cam.z,
 			cam.y * cam.z,
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z,
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z,
 		)
-		requestAnimationFrame(() => this.draw())
+		requestAnimationFrame(() => this.tick())
 	}
 
 	generateShuffledIndices() {
@@ -167,8 +170,6 @@ export class FallingSand {
 	}
 
 	updateParticles() {
-		// const isTick = (performance.now() / 16) % 2 === 0; // Determine if it's a tick or toc based on frame count
-
 		for (const index of this.shuffledIndices) {
 			const cell = this.world[index]
 			if (cell.particle.isTickCycle !== this.isTickFrame) {
@@ -214,7 +215,7 @@ export class FallingSand {
 		for (let i = 0; i < 500; i++) {
 			const x = Math.floor(Math.random() * this.WORLD_SIZE)
 			const y = Math.floor(Math.random() * this.WORLD_SIZE)
-			const sand = new Sand(x, y, this.WORLD_SIZE, this.world)
+			const sand = new Sand(x, y, this.world)
 			this.world[this.worldIndex(x, y)] = {
 				particle: sand,
 				changed: true,
@@ -231,7 +232,6 @@ export class FallingSand {
 				cell.particle = new Air(
 					particle.position.x,
 					particle.position.y,
-					this.WORLD_SIZE,
 					this.world,
 				)
 				cell.changed = true
@@ -331,7 +331,7 @@ export class FallingSand {
 		if (x < 0 || x >= this.WORLD_SIZE || y < 0 || y >= this.WORLD_SIZE) {
 			return
 		}
-		const p = new particle(x, y, this.WORLD_SIZE, this.world)
+		const p = new particle(x, y, this.world)
 		this.world[this.worldIndex(x, y)] = {
 			particle: p,
 			changed: true,
@@ -353,7 +353,7 @@ export class FallingSand {
 				const distance = Math.sqrt(
 					(x - pointerGridX) ** 2 + (y - pointerGridY) ** 2,
 				)
-				if (distance < radius) {
+				if (distance < radius && chance(this.BRUSH_CHANCE)) {
 					this.setParticleInSandSpace(x, y, particle)
 				}
 			}
