@@ -14,6 +14,10 @@ export class FallingSand {
 	WORLD_SIZE = 500
 	BRUSH_RADIUS = 10
 	BRUSH_CHANCE = 0.3
+	DEBUG = {
+		outline: true,
+		dirtyCells: false,
+	}
 
 	editor: Editor
 	ctx: CanvasRenderingContext2D
@@ -97,7 +101,7 @@ export class FallingSand {
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z, // destination height
 		)
 
-		this.debugOutline(cam)
+		if (this.DEBUG.outline) this.debugOutline(cam)
 
 		requestAnimationFrame(() => this.tick())
 	}
@@ -202,7 +206,7 @@ export class FallingSand {
 				(cell.particle.position.y * this.WORLD_SIZE +
 					cell.particle.position.x) *
 				4
-			if (cell.dirty) {
+			if (this.DEBUG.dirtyCells && cell.dirty) {
 				data[index] = 200
 				data[index + 1] = 0
 				data[index + 2] = 0
@@ -220,7 +224,7 @@ export class FallingSand {
 			data[index] = color.r
 			data[index + 1] = color.g
 			data[index + 2] = color.b
-			data[index + 3] = 255 // Alpha channel
+			data[index + 3] = 255
 		}
 
 		this.offscreenCtx.putImageData(imageData, 0, 0)
