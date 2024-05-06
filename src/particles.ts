@@ -38,6 +38,7 @@ abstract class Particle {
 
 	abstract colorHSL: string
 	private _colorRGB?: { r: number; g: number; b: number }
+	isTickCycle = false
 
 	get colorRGB(): { r: number; g: number; b: number } {
 		if (!this._colorRGB) {
@@ -121,6 +122,7 @@ abstract class Particle {
 			changed: true,
 		}
 	}
+
 	protected swapParticle(xOffset: number, yOffset: number) {
 		const newPosition = {
 			x: this.position.x + xOffset,
@@ -139,6 +141,86 @@ abstract class Particle {
 			particle: this,
 			changed: true,
 		}
+	}
+	protected replaceParticle(xOffset: number, yOffset: number) {
+		const newPosition = {
+			x: this.position.x + xOffset,
+			y: this.position.y + yOffset,
+		}
+		const nextCell = this.world[this.idx(xOffset, yOffset)]
+		nextCell.particle.position.x = this.position.x
+		nextCell.particle.position.y = this.position.y
+		this.world[this.idx(0, 0)] = {
+			particle: Particle.airPool.getAir(
+				this.position.x,
+				this.position.y,
+				this.worldSize,
+				this.world,
+			),
+			changed: true,
+		}
+		this.position.x = newPosition.x
+		this.position.y = newPosition.y
+		this.world[this.idx(0, 0)] = {
+			particle: this,
+			changed: true,
+		}
+	}
+}
+
+class Acid extends Particle {
+	colorHSL = `hsl(${randRange(70, 110)}, 60%, 50%)`
+
+	update() {
+		if (this.canMoveTo(0, 1)) {
+			this.moveParticle(0, 1)
+		} else if (this.canMoveTo(1, 1)) {
+			this.swapParticle(1, 1)
+		} else if (this.canMoveTo(-1, 1)) {
+			this.swapParticle(-1, 1)
+		} else if (this.canSwapWith(0, 1)) {
+			if (this.chance(0.1)) {
+				if (this.chance(0.1)) {
+					this.replaceParticle(0, 1)
+				} else {
+					this.swapParticle(0, 1)
+				}
+			}
+		}
+		if (this.chance(0.01)) {
+			this.dissolveNearby()
+		}
+	}
+
+	canSwapWith(offsetX: number, offsetY: number): boolean {
+		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Water
+	}
+
+	dissolveNearby() {
+		for (const [dx, dy] of [
+			[1, 0],
+			[-1, 0],
+			[0, -1],
+			[0, 1],
+		]) {
+			if (this.canDissolve(dx, dy)) {
+				this.world[this.idx(dx, dy)] = {
+					changed: true,
+					particle: Particle.airPool.getAir(
+						this.position.x + dx,
+						this.position.y + dy,
+						this.worldSize,
+						this.world,
+					),
+				}
+			}
+		}
+	}
+
+	canDissolve(dx: number, dy: number): boolean {
+		const target = this.world[this.idx(dx, dy)]
+		if (!target) return false
+		return target.particle instanceof Stone || target.particle instanceof Sand
 	}
 }
 
@@ -172,6 +254,8 @@ class Water extends Particle {
 	update() {
 		if (this.canMoveTo(0, 1)) {
 			this.moveParticle(0, 1)
+		} else if (this.canSwapWith(0, 1)) {
+			this.swapParticle(0, 1)
 		} else if (this.canMoveTo(1, 1)) {
 			this.moveParticle(1, 1)
 		} else if (this.canMoveTo(-1, 1)) {
@@ -180,6 +264,48 @@ class Water extends Particle {
 			this.moveParticle(-1, 0)
 		} else if (this.canMoveTo(1, 0)) {
 			this.moveParticle(1, 0)
+		}
+	}
+	canSwapWith(offsetX: number, offsetY: number): boolean {
+		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Steam
+	}
+}
+
+class Steam extends Particle {
+	colorHSL = "hsl(0, 0%, 90%)"
+
+	update() {
+		if (this.chance(0.001)) {
+			// Chance to condense back into water
+			this.condense()
+		} else if (this.canMoveTo(0, -1)) {
+			this.moveParticle(0, -1)
+		} else {
+			this.disperse()
+		}
+	}
+
+	condense() {
+		this.world[this.position.y * this.worldSize + this.position.x] = {
+			changed: true,
+			particle: new Water(
+				this.position.x,
+				this.position.y,
+				this.worldSize,
+				this.world,
+			),
+		}
+	}
+
+	disperse() {
+		for (const [dx, dy] of [
+			[1, 0],
+			[-1, 0],
+		]) {
+			if (this.canMoveTo(dx, dy)) {
+				this.moveParticle(dx, dy)
+				break
+			}
 		}
 	}
 }
@@ -201,6 +327,7 @@ export const particles = {
 	sand: Sand,
 	stone: Stone,
 	water: Water,
-	geo: Geo,
 	air: Air,
+	acid: Acid,
+	steam: Steam,
 }

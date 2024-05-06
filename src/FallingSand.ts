@@ -21,6 +21,7 @@ export class FallingSand {
 	world: Cell[]
 	particleTypes = particles
 	shuffledIndices: number[]
+	isTickFrame = false
 
 	constructor(editor: Editor) {
 		this.editor = editor
@@ -44,7 +45,9 @@ export class FallingSand {
 		offscreenCanvas.height = this.WORLD_SIZE
 		canvas.width = this.width
 		canvas.height = this.height
-		const offscreenCtx = offscreenCanvas.getContext("2d")
+		const offscreenCtx = offscreenCanvas.getContext("2d", {
+			willReadFrequently: true,
+		})
 		const ctx = canvas.getContext("2d")
 		if (!ctx || !offscreenCtx) throw new Error("Could not get context")
 		ctx.imageSmoothingEnabled = false
@@ -67,15 +70,12 @@ export class FallingSand {
 	}
 
 	draw() {
+		this.isTickFrame = !this.isTickFrame
 		if (!this.offscreenCtx) return
 
 		// Clear the buffer and main canvas
 		this.offscreenCtx.clearRect(0, 0, this.WORLD_SIZE, this.WORLD_SIZE)
 		this.ctx.clearRect(0, 0, this.width, this.height)
-
-		// Draw debug outline
-		this.offscreenCtx.strokeStyle = "grey"
-		this.offscreenCtx.strokeRect(0, 0, this.WORLD_SIZE, this.WORLD_SIZE)
 
 		this.handleInputs()
 		this.updateParticles()
@@ -92,6 +92,14 @@ export class FallingSand {
 			cam.y * cam.z, // destination X, Y
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z, // destination width
 			this.WORLD_SIZE * this.CELL_SIZE * cam.z, // destination height
+		)
+		// Draw debug outline
+		this.ctx.strokeStyle = "grey"
+		this.ctx.strokeRect(
+			cam.x * cam.z,
+			cam.y * cam.z,
+			this.WORLD_SIZE * this.CELL_SIZE * cam.z,
+			this.WORLD_SIZE * this.CELL_SIZE * cam.z,
 		)
 		requestAnimationFrame(() => this.draw())
 	}
@@ -159,13 +167,14 @@ export class FallingSand {
 	}
 
 	updateParticles() {
+		// const isTick = (performance.now() / 16) % 2 === 0; // Determine if it's a tick or toc based on frame count
+
 		for (const index of this.shuffledIndices) {
 			const cell = this.world[index]
-			if (cell.particle instanceof Air || !cell.changed) {
-				cell.changed = false
-				continue
+			if (cell.particle.isTickCycle !== this.isTickFrame) {
+				cell.particle.update()
+				cell.particle.isTickCycle = this.isTickFrame
 			}
-			cell.particle.update()
 		}
 	}
 
