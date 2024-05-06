@@ -14,9 +14,8 @@ export class FallingSand {
 	BRUSH_RADIUS = 5
 
 	editor: Editor
-	canvas: HTMLCanvasElement
 	ctx: CanvasRenderingContext2D
-	buffer: CanvasRenderingContext2D
+	offscreenCtx: CanvasRenderingContext2D
 	width: number
 	height: number
 	world: Cell[]
@@ -39,21 +38,19 @@ export class FallingSand {
 			}
 		}
 
-		this.canvas = document.createElement("canvas")
+		const canvas = document.createElement("canvas")
 		const offscreenCanvas = document.createElement("canvas")
-		offscreenCanvas.width = this.width
-		offscreenCanvas.height = this.height
-		this.canvas.width = this.width
-		this.canvas.height = this.height
+		offscreenCanvas.width = this.WORLD_SIZE
+		offscreenCanvas.height = this.WORLD_SIZE
+		canvas.width = this.width
+		canvas.height = this.height
 		const offscreenCtx = offscreenCanvas.getContext("2d")
-		const ctx = this.canvas.getContext("2d")
+		const ctx = canvas.getContext("2d")
 		if (!ctx || !offscreenCtx) throw new Error("Could not get context")
-		this.buffer = offscreenCtx
+		ctx.imageSmoothingEnabled = false
+		document.body.appendChild(canvas)
+		this.offscreenCtx = offscreenCtx
 		this.ctx = ctx
-
-		if (this.ctx) {
-			document.body.appendChild(this.canvas)
-		}
 
 		/** We mirror tldraw geometry to the particle world */
 		editor.store.onAfterChange = (_, next, __) => {
@@ -70,34 +67,32 @@ export class FallingSand {
 	}
 
 	draw() {
-		if (!this.buffer) return
+		if (!this.offscreenCtx) return
 
 		// Clear the buffer and main canvas
-		this.buffer.clearRect(0, 0, this.width, this.height)
+		this.offscreenCtx.clearRect(0, 0, this.WORLD_SIZE, this.WORLD_SIZE)
 		this.ctx.clearRect(0, 0, this.width, this.height)
 
-		// Align buffer with tldraw camera/scene
-		const cam = this.editor.getCamera()
-		this.buffer.scale(cam.z, cam.z)
-		this.buffer.translate(cam.x, cam.y)
-
 		// Draw debug outline
-		this.buffer.strokeStyle = "black"
-		this.buffer.strokeRect(
-			0,
-			0,
-			this.WORLD_SIZE * this.CELL_SIZE,
-			this.WORLD_SIZE * this.CELL_SIZE,
-		)
+		this.offscreenCtx.strokeStyle = "grey"
+		this.offscreenCtx.strokeRect(0, 0, this.WORLD_SIZE, this.WORLD_SIZE)
 
 		this.handleInputs()
 		this.updateParticles()
 		this.drawParticles()
 
-		// Reset transformations for main canvas
-		this.ctx.setTransform(1, 0, 0, 1, 0, 0)
-		this.buffer.setTransform(1, 0, 0, 1, 0, 0)
-		this.ctx.drawImage(this.buffer.canvas, 0, 0)
+		const cam = this.editor.getCamera()
+		this.ctx.drawImage(
+			this.offscreenCtx.canvas,
+			0,
+			0, // source X, Y
+			this.WORLD_SIZE,
+			this.WORLD_SIZE, // source width and height
+			cam.x * cam.z,
+			cam.y * cam.z, // destination X, Y
+			this.WORLD_SIZE * this.CELL_SIZE * cam.z, // destination width
+			this.WORLD_SIZE * this.CELL_SIZE * cam.z, // destination height
+		)
 		requestAnimationFrame(() => this.draw())
 	}
 
@@ -175,16 +170,35 @@ export class FallingSand {
 	}
 
 	drawParticles() {
+		const imageData = this.offscreenCtx.getImageData(
+			0,
+			0,
+			this.WORLD_SIZE,
+			this.WORLD_SIZE,
+		)
+		const data = imageData.data
+
 		for (const cell of this.world) {
 			if (!cell.changed) continue
-			this.buffer.fillStyle = cell.particle.color
-			this.buffer.fillRect(
-				cell.particle.position.x * this.CELL_SIZE,
-				cell.particle.position.y * this.CELL_SIZE,
-				this.CELL_SIZE,
-				this.CELL_SIZE,
-			)
+			const index =
+				(cell.particle.position.y * this.WORLD_SIZE +
+					cell.particle.position.x) *
+				4
+			if (cell.particle instanceof Air) {
+				data[index] = 255
+				data[index + 1] = 255
+				data[index + 2] = 255
+				data[index + 3] = 255
+				continue
+			}
+			const color = cell.particle.colorRGB
+			data[index] = color.r
+			data[index + 1] = color.g
+			data[index + 2] = color.b
+			data[index + 3] = 255 // Alpha channel
 		}
+
+		this.offscreenCtx.putImageData(imageData, 0, 0)
 	}
 
 	createRandomDebugSand() {

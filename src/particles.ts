@@ -4,17 +4,59 @@ function randRange(min: number, max: number): number {
 
 export { type Cell, Particle, Sand, Stone, Water, Geo, Air }
 
+class ParticlePool {
+	private airPool: Air[] = []
+
+	getAir(x: number, y: number, worldSize: number, world: Cell[]): Air {
+		if (this.airPool.length > 0) {
+			const air = this.airPool.pop()
+			if (!air) return new Air(x, y, worldSize, world)
+			air.position.x = x
+			air.position.y = y
+			air.worldSize = worldSize
+			air.world = world
+			return air
+		}
+		return new Air(x, y, worldSize, world)
+	}
+
+	releaseAir(air: Air) {
+		this.airPool.push(air)
+	}
+}
+
 type Cell = {
 	particle: Particle
 	changed: boolean
 }
 
 abstract class Particle {
+	static particlePool = new ParticlePool()
 	position: { x: number; y: number }
 	worldSize: number
 	world: Cell[]
 
-	abstract color: string
+	abstract colorHSL: string
+	private _colorRGB?: { r: number; g: number; b: number }
+
+	get colorRGB(): { r: number; g: number; b: number } {
+		if (!this._colorRGB) {
+			this._colorRGB = this.hslToRgb(this.colorHSL)
+		}
+		return this._colorRGB
+	}
+
+	private hslToRgb(hsl: string): { r: number; g: number; b: number } {
+		let [h, s, l] = hsl.match(/\d+/g).map(Number)
+		l /= 100
+		const a = (s * Math.min(l, 1 - l)) / 100
+		const f = (n: number) => {
+			const k = (n + h / 30) % 12
+			const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
+			return Math.round(255 * color)
+		}
+		return { r: f(0), g: f(8), b: f(4) }
+	}
 
 	constructor(x: number, y: number, worldSize: number, world: Cell[]) {
 		this.position = { x, y }
@@ -49,7 +91,7 @@ abstract class Particle {
 	protected delete() {
 		this.world[this.position.y * this.worldSize + this.position.x] = {
 			changed: true,
-			particle: new Air(
+			particle: Particle.particlePool.getAir(
 				this.position.x,
 				this.position.y,
 				this.worldSize,
@@ -61,7 +103,7 @@ abstract class Particle {
 	protected moveParticle(xOffset: number, yOffset: number) {
 		this.world[this.position.y * this.worldSize + this.position.x] = {
 			changed: true,
-			particle: new Air(
+			particle: Particle.particlePool.getAir(
 				this.position.x,
 				this.position.y,
 				this.worldSize,
@@ -75,26 +117,45 @@ abstract class Particle {
 			changed: true,
 		}
 	}
+	protected swapParticle(xOffset: number, yOffset: number) {
+		const newPosition = {
+			x: this.position.x + xOffset,
+			y: this.position.y + yOffset,
+		}
+		const nextParticle =
+			this.world[newPosition.y * this.worldSize + newPosition.x].particle
+		// set current position to particle at next position
+		this.world[this.position.y * this.worldSize + this.position.x] = {
+			particle: nextParticle,
+			changed: true,
+		}
+		this.position.x = newPosition.x
+		this.position.y = newPosition.y
+		this.world[newPosition.y * this.worldSize + newPosition.x] = {
+			particle: this,
+			changed: true,
+		}
+	}
 }
 
 class Sand extends Particle {
-	color = `hsl(${randRange(40, 45)}, ${randRange(50, 60)}%, ${randRange(
+	colorHSL = `hsl(${randRange(40, 45)}, ${randRange(50, 60)}%, ${randRange(
 		70,
 		80,
 	)}%)`
 
 	update() {
 		if (this.canMoveTo(0, 1)) {
-			this.moveParticle(0, 1)
+			this.swapParticle(0, 1)
 		} else if (this.canMoveTo(1, 1)) {
-			this.moveParticle(1, 1)
+			this.swapParticle(1, 1)
 		} else if (this.canMoveTo(-1, 1)) {
-			this.moveParticle(-1, 1)
+			this.swapParticle(-1, 1)
 		}
 	}
 }
 class Water extends Particle {
-	color = `hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`
+	colorHSL = `hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`
 
 	update() {
 		if (this.canMoveTo(0, 1)) {
@@ -112,15 +173,15 @@ class Water extends Particle {
 }
 
 class Stone extends Particle {
-	color = "grey"
+	colorHSL = "hsl(0, 0%, 50%)"
 	update() {}
 }
 class Geo extends Particle {
-	color = "#e8e8e8"
+	colorHSL = "hsl(0, 0%, 40%)"
 	update() {}
 }
 class Air extends Particle {
-	color = "white"
+	colorHSL = "hsl(0, 0%, 100%)"
 	update() {}
 }
 
