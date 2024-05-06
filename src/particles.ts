@@ -2,21 +2,24 @@ function randRange(min: number, max: number): number {
 	return Math.floor(Math.random() * (max - min + 1) + min)
 }
 
+export { type Cell, Particle, Sand, Stone, Water, Geo, Air }
+
+type Cell = {
+	particle: Particle
+	changed: boolean
+}
+
 abstract class Particle {
 	position: { x: number; y: number }
 	worldSize: number
-	grid: (Particle | null)[]
+	world: Cell[]
+
 	abstract color: string
 
-	constructor(
-		x: number,
-		y: number,
-		worldSize: number,
-		world: (Particle | null)[],
-	) {
+	constructor(x: number, y: number, worldSize: number, world: Cell[]) {
 		this.position = { x, y }
 		this.worldSize = worldSize
-		this.grid = world
+		this.world = world
 	}
 
 	abstract update(): void
@@ -34,24 +37,43 @@ abstract class Particle {
 		const newY = this.position.y + y
 		if (
 			newX < 0 ||
-			newX > this.worldSize ||
+			newX >= this.worldSize ||
 			newY < 0 ||
 			newY >= this.worldSize
 		) {
 			return false
 		}
-		return !this.grid[newY * this.worldSize + newX]
+		return this.world[newY * this.worldSize + newX].particle instanceof Air
 	}
 
 	protected delete() {
-		this.grid[this.position.y * this.worldSize + this.position.x] = null
+		this.world[this.position.y * this.worldSize + this.position.x] = {
+			changed: true,
+			particle: new Air(
+				this.position.x,
+				this.position.y,
+				this.worldSize,
+				this.world,
+			),
+		}
 	}
 
 	protected moveParticle(xOffset: number, yOffset: number) {
-		this.grid[this.position.y * this.worldSize + this.position.x] = null
+		this.world[this.position.y * this.worldSize + this.position.x] = {
+			changed: true,
+			particle: new Air(
+				this.position.x,
+				this.position.y,
+				this.worldSize,
+				this.world,
+			),
+		}
 		this.position.x = this.position.x + xOffset
 		this.position.y = this.position.y + yOffset
-		this.grid[this.position.y * this.worldSize + this.position.x] = this
+		this.world[this.position.y * this.worldSize + this.position.x] = {
+			particle: this,
+			changed: true,
+		}
 	}
 }
 
@@ -91,21 +113,15 @@ class Water extends Particle {
 
 class Stone extends Particle {
 	color = "grey"
-	update() {
-		// Intentionally left empty
-	}
+	update() {}
 }
 class Geo extends Particle {
 	color = "#e8e8e8"
-	update() {
-		// Intentionally left empty
-	}
+	update() {}
 }
 class Air extends Particle {
-	color = "red"
-	update() {
-		this.delete()
-	}
+	color = "white"
+	update() {}
 }
 
 export const particles = {
@@ -115,5 +131,3 @@ export const particles = {
 	geo: Geo,
 	air: Air,
 }
-
-export { Particle, Sand, Stone, Water, Geo, Air }

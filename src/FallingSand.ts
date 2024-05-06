@@ -1,16 +1,16 @@
 import { Editor } from "tldraw"
-import { Geo, Particle, Sand, particles } from "./particles"
+import { Air, Cell, Geo, Particle, Sand, particles } from "./particles"
 
 type ParticleConstructor = new (
 	x: number,
 	y: number,
 	worldSize: number,
-	world: (Particle | null)[],
+	world: Cell[],
 ) => Particle
 
 export class FallingSand {
 	CELL_SIZE = 5
-	WORLD_SIZE = 200
+	WORLD_SIZE = 500
 	BRUSH_RADIUS = 5
 
 	editor: Editor
@@ -19,7 +19,7 @@ export class FallingSand {
 	buffer: CanvasRenderingContext2D
 	width: number
 	height: number
-	world: (Particle | null)[]
+	world: Cell[]
 	particleTypes = particles
 	shuffledIndices: number[]
 
@@ -27,8 +27,17 @@ export class FallingSand {
 		this.editor = editor
 		this.width = window.innerWidth
 		this.height = window.innerHeight
-		this.world = new Array(this.WORLD_SIZE * this.WORLD_SIZE).fill(null)
+		this.world = new Array(this.WORLD_SIZE * this.WORLD_SIZE)
 		this.shuffledIndices = this.generateShuffledIndices()
+
+		for (let i = 0; i < this.world.length; i++) {
+			const x = i % this.WORLD_SIZE
+			const y = Math.floor(i / this.WORLD_SIZE)
+			this.world[i] = {
+				particle: new Air(x, y, this.WORLD_SIZE, this.world),
+				changed: false,
+			}
+		}
 
 		this.canvas = document.createElement("canvas")
 		const offscreenCanvas = document.createElement("canvas")
@@ -155,25 +164,26 @@ export class FallingSand {
 	}
 
 	updateParticles() {
-		// Update particles in the shuffled order
 		for (const index of this.shuffledIndices) {
-			const particle = this.world[index]
-			if (particle) particle.update()
+			const cell = this.world[index]
+			if (cell.particle instanceof Air) {
+				cell.changed = false
+				continue
+			}
+			cell.particle.update()
 		}
 	}
 
 	drawParticles() {
-		if (!this.buffer) return
 		for (const cell of this.world) {
-			if (cell) {
-				this.buffer.fillStyle = cell.color
-				this.buffer.fillRect(
-					cell.position.x * this.CELL_SIZE,
-					cell.position.y * this.CELL_SIZE,
-					this.CELL_SIZE,
-					this.CELL_SIZE,
-				)
-			}
+			if (!cell.changed) continue
+			this.buffer.fillStyle = cell.particle.color
+			this.buffer.fillRect(
+				cell.particle.position.x * this.CELL_SIZE,
+				cell.particle.position.y * this.CELL_SIZE,
+				this.CELL_SIZE,
+				this.CELL_SIZE,
+			)
 		}
 	}
 
@@ -182,15 +192,26 @@ export class FallingSand {
 			const x = Math.floor(Math.random() * this.WORLD_SIZE)
 			const y = Math.floor(Math.random() * this.WORLD_SIZE)
 			const sand = new Sand(x, y, this.WORLD_SIZE, this.world)
-			this.world[this.worldIndex(x, y)] = sand
+			this.world[this.worldIndex(x, y)] = {
+				particle: sand,
+				changed: true,
+			}
 		}
 	}
 
 	updateSolidShapes() {
 		// Clear existing Geo particles
 		for (let i = 0; i < this.world.length; i++) {
-			if (this.world[i] && this.world[i] instanceof Geo) {
-				this.world[i] = null
+			const cell = this.world[i]
+			const { particle } = cell
+			if (particle && particle instanceof Geo) {
+				cell.particle = new Air(
+					particle.position.x,
+					particle.position.y,
+					this.WORLD_SIZE,
+					this.world,
+				)
+				cell.changed = true
 			}
 		}
 
@@ -288,7 +309,10 @@ export class FallingSand {
 			return
 		}
 		const p = new particle(x, y, this.WORLD_SIZE, this.world)
-		this.world[this.worldIndex(x, y)] = p
+		this.world[this.worldIndex(x, y)] = {
+			particle: p,
+			changed: true,
+		}
 	}
 
 	addBrushParticles(
