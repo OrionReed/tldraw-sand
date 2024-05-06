@@ -48,7 +48,7 @@ abstract class Particle {
 	}
 
 	private hslToRgb(hsl: string): { r: number; g: number; b: number } {
-		let [h, s, l] = hsl.match(/\d+/g).map(Number)
+		let [h, s, l] = hsl.match(/\d+/g)?.map(Number) ?? [0, 0, 0]
 		l /= 100
 		const a = (s * Math.min(l, 1 - l)) / 100
 		const f = (n: number) => {
@@ -75,7 +75,7 @@ abstract class Particle {
 	}
 
 	/** Check if the new position is valid, relative to current position */
-	protected canMoveTo(x: number, y: number): boolean {
+	protected isEmpty(x: number, y: number): boolean {
 		const newX = this.position.x + x
 		const newY = this.position.y + y
 		if (
@@ -104,6 +104,9 @@ abstract class Particle {
 	protected chance(percent: number): boolean {
 		return Math.random() < percent
 	}
+	protected chanceInt(max: number): number {
+		return Math.floor(Math.random() * max)
+	}
 
 	protected moveParticle(xOffset: number, yOffset: number) {
 		this.world[this.position.y * this.worldSize + this.position.x] = {
@@ -121,6 +124,21 @@ abstract class Particle {
 			particle: this,
 			changed: true,
 		}
+	}
+
+	/** Returns number of adjacent cells which are not air (num between 0-9) */
+	protected adjacent(xOffset: number, yOffset: number): number {
+		let count = 0
+		for (const dx of [-1, 0, 1]) {
+			for (const dy of [-1, 0, 1]) {
+				if (dx === 0 && dy === 0) continue
+				const idx = this.idx(xOffset + dx, yOffset + dy)
+				if (this.world[idx] && !(this.world[idx].particle instanceof Air)) {
+					count++
+				}
+			}
+		}
+		return count
 	}
 
 	protected swapParticle(xOffset: number, yOffset: number) {
@@ -172,11 +190,11 @@ class Acid extends Particle {
 	colorHSL = `hsl(${randRange(70, 110)}, 60%, 50%)`
 
 	update() {
-		if (this.canMoveTo(0, 1)) {
+		if (this.isEmpty(0, 1)) {
 			this.moveParticle(0, 1)
-		} else if (this.canMoveTo(1, 1)) {
+		} else if (this.isEmpty(1, 1)) {
 			this.swapParticle(1, 1)
-		} else if (this.canMoveTo(-1, 1)) {
+		} else if (this.isEmpty(-1, 1)) {
 			this.swapParticle(-1, 1)
 		} else if (this.canSwapWith(0, 1)) {
 			if (this.chance(0.1)) {
@@ -235,11 +253,11 @@ class Sand extends Particle {
 	}
 
 	update() {
-		if (this.canMoveTo(0, 1)) {
+		if (this.isEmpty(0, 1)) {
 			this.moveParticle(0, 1)
-		} else if (this.canMoveTo(1, 1)) {
+		} else if (this.isEmpty(1, 1)) {
 			this.swapParticle(1, 1)
-		} else if (this.canMoveTo(-1, 1)) {
+		} else if (this.isEmpty(-1, 1)) {
 			this.swapParticle(-1, 1)
 		} else if (this.canSwapWith(0, 1)) {
 			if (this.chance(0.3)) {
@@ -252,22 +270,92 @@ class Water extends Particle {
 	colorHSL = `hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`
 
 	update() {
-		if (this.canMoveTo(0, 1)) {
+		if (this.isEmpty(0, 1)) {
 			this.moveParticle(0, 1)
 		} else if (this.canSwapWith(0, 1)) {
 			this.swapParticle(0, 1)
-		} else if (this.canMoveTo(1, 1)) {
+		} else if (this.isEmpty(1, 1)) {
 			this.moveParticle(1, 1)
-		} else if (this.canMoveTo(-1, 1)) {
+		} else if (this.isEmpty(-1, 1)) {
 			this.moveParticle(-1, 1)
-		} else if (this.canMoveTo(-1, 0)) {
+		} else if (this.isEmpty(-1, 0)) {
 			this.moveParticle(-1, 0)
-		} else if (this.canMoveTo(1, 0)) {
+		} else if (this.isEmpty(1, 0)) {
 			this.moveParticle(1, 0)
 		}
 	}
 	canSwapWith(offsetX: number, offsetY: number): boolean {
 		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Steam
+	}
+}
+
+class Plant extends Particle {
+	private energy = 15
+	colorHSL = `hsl(${randRange(100, 140)}, ${randRange(30, 50)}%, ${randRange(
+		40,
+		60,
+	)}%)`
+
+	update() {
+		// Example behavior: grow upwards if there is air above
+		if (this.chance(0.05) && this.isEmpty(0, -1)) {
+			const rand = this.chanceInt(4)
+			if (rand === 0) {
+				this.tryGrow(0, -1) // up
+			} else if (rand === 1) {
+				this.tryGrow(1, -1) // up-right
+			} else if (rand === 2) {
+				this.tryGrow(-1, -1) // up-left
+			} else if (rand === 3) {
+				this.tryGrow(1, -1) // up-right
+			} else if (rand === 4) {
+				this.tryGrow(-1, 0) // left
+			} else if (rand === 5) {
+				this.tryGrow(1, 0) // right
+			}
+		}
+	}
+
+	tryGrow(x: number, y: number) {
+		if (this.energy <= 0) {
+			return
+		}
+		if (this.adjacent(x, y) > 3) {
+			return
+		}
+		this.energy--
+		const newPlant = new Plant(
+			this.position.x + x,
+			this.position.y + y,
+			this.worldSize,
+			this.world,
+		)
+		newPlant.energy = this.energy
+		this.world[this.idx(x, y)] = {
+			particle: newPlant,
+			changed: true,
+		}
+	}
+
+	// Plants absorb water to grow
+	canAbsorb(dx: number, dy: number): boolean {
+		const target = this.world[this.idx(dx, dy)]
+		return target.particle instanceof Water
+	}
+
+	absorb(dx: number, dy: number) {
+		if (this.canAbsorb(dx, dy)) {
+			// Convert water to air (simulate absorption)
+			this.world[this.idx(dx, dy)] = {
+				changed: true,
+				particle: Particle.airPool.getAir(
+					this.position.x + dx,
+					this.position.y + dy,
+					this.worldSize,
+					this.world,
+				),
+			}
+		}
 	}
 }
 
@@ -278,7 +366,7 @@ class Steam extends Particle {
 		if (this.chance(0.001)) {
 			// Chance to condense back into water
 			this.condense()
-		} else if (this.canMoveTo(0, -1)) {
+		} else if (this.isEmpty(0, -1)) {
 			this.moveParticle(0, -1)
 		} else {
 			this.disperse()
@@ -302,7 +390,7 @@ class Steam extends Particle {
 			[1, 0],
 			[-1, 0],
 		]) {
-			if (this.canMoveTo(dx, dy)) {
+			if (this.isEmpty(dx, dy)) {
 				this.moveParticle(dx, dy)
 				break
 			}
@@ -330,4 +418,5 @@ export const particles = {
 	air: Air,
 	acid: Acid,
 	steam: Steam,
+	plant: Plant,
 }
