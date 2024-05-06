@@ -104,19 +104,25 @@ export class FallingSand {
 	}
 
 	updateParticles() {
-		// Update particles
-		for (let y = this.worldSize - 1; y >= 0; y--) {
-			if (y % 2 === 0) {
-				for (let x = 0; x < this.worldSize; x++) {
-					const particle = this.world[y * this.worldSize + x]
-					if (particle) particle.update()
-				}
-			} else {
-				for (let x = this.worldSize - 1; x >= 0; x--) {
-					const particle = this.world[y * this.worldSize + x]
-					if (particle) particle.update()
-				}
-			}
+		// Generate shuffled indices for the entire world
+		const shuffledIndices = Array.from(
+			{ length: this.world.length },
+			(_, i) => i,
+		)
+		this.shuffleArray(shuffledIndices)
+
+		// Update particles in the shuffled order
+		for (const index of shuffledIndices) {
+			const particle = this.world[index]
+			if (particle) particle.update()
+		}
+	}
+
+	// Helper method to shuffle an array in-place using Fisher-Yates algorithm
+	shuffleArray(array: number[]) {
+		for (let i = array.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1))
+			;[array[i], array[j]] = [array[j], array[i]]
 		}
 	}
 
