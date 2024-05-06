@@ -1,3 +1,7 @@
+function randRange(min: number, max: number): number {
+	return Math.floor(Math.random() * (max - min + 1) + min)
+}
+
 abstract class Particle {
 	position: { x: number; y: number }
 	gridSize: number
@@ -35,7 +39,11 @@ abstract class Particle {
 }
 
 class Sand extends Particle {
-	color = "black"
+	color = `hsl(${randRange(40, 45)}, ${randRange(50, 60)}%, ${randRange(
+		70,
+		80,
+	)}%)`
+
 	update() {
 		const x = this.position.x
 		const y = this.position.y
@@ -62,7 +70,7 @@ class Sand extends Particle {
 	}
 }
 class Water extends Particle {
-	color = "blue"
+	color = `hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`
 
 	update() {
 		const x = this.position.x
