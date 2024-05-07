@@ -83,6 +83,14 @@ abstract class Particle {
 		return this.world[newY * this.worldSize + newX].particle instanceof Air
 	}
 
+	protected swapIfEmpty(xOffset: number, yOffset: number): boolean {
+		if (this.isEmpty(xOffset, yOffset)) {
+			this.swapParticle(xOffset, yOffset)
+			return true
+		}
+		return false
+	}
+
 	/** Returns number of adjacent cells which are not air (num between 0-9) */
 	protected adjacent(xOffset: number, yOffset: number): number {
 		let count = 0
@@ -150,20 +158,29 @@ class Acid extends Particle {
 	colorHSL = `hsl(${randRange(70, 110)}, 60%, 50%)`
 
 	update() {
-		if (this.isEmpty(0, 1)) {
-			this.swapParticle(0, 1)
-		} else if (this.isEmpty(1, 1)) {
-			this.swapParticle(1, 1)
-		} else if (this.isEmpty(-1, 1)) {
-			this.swapParticle(-1, 1)
-		} else if (this.canSwapWith(0, 1)) {
+		// Attempt to move down or diagonally down if the spot is empty
+		if (
+			this.swapIfEmpty(0, 1) ||
+			this.swapIfEmpty(1, 1) ||
+			this.swapIfEmpty(-1, 1)
+		) {
+			return
+		}
+
+		// If the spot is not empty, maybe swap or replace
+		if (this.canSwapWith(0, 1)) {
 			if (chance(0.1)) {
-				if (chance(0.1)) {
+				if (chance(0.2)) {
 					this.replaceParticle(0, 1)
 				} else {
 					this.swapParticle(0, 1)
 				}
 			}
+		}
+
+		// Attempt to move horizontally if the spot is empty
+		if (this.swapIfEmpty(-1, 0) || this.swapIfEmpty(1, 0)) {
+			return
 		}
 		if (chance(0.01)) {
 			this.dissolveNearby()
@@ -171,7 +188,8 @@ class Acid extends Particle {
 	}
 
 	canSwapWith(offsetX: number, offsetY: number): boolean {
-		return this.getParticleAtIndex(this.idx(offsetX, offsetY)) instanceof Water
+		const target = this.world[this.idx(offsetX, offsetY)]
+		return target?.particle instanceof Water
 	}
 
 	dissolveNearby() {
@@ -230,19 +248,16 @@ class Water extends Particle {
 	colorHSL = `hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`
 
 	update() {
-		if (this.isEmpty(0, 1)) {
-			this.swapParticle(0, 1)
-		} else if (this.canSwapWith(0, 1)) {
-			this.swapParticle(0, 1)
-		} else if (this.isEmpty(1, 1)) {
-			this.swapParticle(1, 1)
-		} else if (this.isEmpty(-1, 1)) {
-			this.swapParticle(-1, 1)
-		} else if (this.isEmpty(-1, 0)) {
-			this.swapParticle(-1, 0)
-		} else if (this.isEmpty(1, 0)) {
-			this.swapParticle(1, 0)
+		if (this.swapIfEmpty(0, 1)) {
+			return
 		}
+		if (this.canSwapWith(0, 1)) {
+			this.swapParticle(0, 1)
+		}
+		this.swapIfEmpty(1, 1) ||
+			this.swapIfEmpty(-1, 1) ||
+			this.swapIfEmpty(-1, 0) ||
+			this.swapIfEmpty(1, 0)
 	}
 	canSwapWith(offsetX: number, offsetY: number): boolean {
 		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Steam
@@ -257,7 +272,6 @@ class Plant extends Particle {
 	)}%)`
 
 	update() {
-		// Example behavior: grow upwards if there is air above
 		if (chance(0.15)) {
 			const rand = chanceInt(5)
 			if (rand === 0) {
