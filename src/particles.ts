@@ -224,43 +224,114 @@ class Sand extends Particle {
 		70,
 		80,
 	)}%)`
+	velocity = 0
+	acceleration = 0.05
+	maxSpeed = 5
 
 	canSwapWith(offsetX: number, offsetY: number): boolean {
 		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Water
 	}
 
 	update() {
-		if (this.isEmpty(0, 1)) {
-			this.swapParticle(0, 1)
-		} else if (this.isEmpty(1, 1)) {
-			this.swapParticle(1, 1)
-		} else if (this.isEmpty(-1, 1)) {
-			this.swapParticle(-1, 1)
-		} else if (this.canSwapWith(0, 1)) {
-			if (chance(0.3)) {
+		this.updateVelocity()
+		for (let v = 0; v < this.getUpdateCount(); v++) {
+			if (this.isEmpty(0, 1)) {
 				this.swapParticle(0, 1)
+			} else if (this.isEmpty(1, 1)) {
+				this.swapParticle(1, 1)
+				this.decreaseVelocity(0.2)
+				break
+			} else if (this.isEmpty(-1, 1)) {
+				this.swapParticle(-1, 1)
+				this.decreaseVelocity(0.2)
+				break
+			} else if (this.canSwapWith(0, 1)) {
+				if (chance(0.3)) {
+					this.swapParticle(0, 1)
+				}
+				this.decreaseVelocity(0.2)
+				break
 			}
 		}
+	}
+
+	updateVelocity() {
+		let newVelocity = this.velocity + this.acceleration
+
+		if (Math.abs(newVelocity) > this.maxSpeed) {
+			newVelocity = Math.sign(newVelocity) * this.maxSpeed
+		}
+
+		this.velocity = newVelocity
+	}
+
+	/** Subtract from the current velocity as a percentage */
+	decreaseVelocity(amount: number) {
+		this.velocity -= Math.max(this.velocity * amount, 0)
+	}
+
+	resetVelocity() {
+		this.velocity = 0
+	}
+
+	getUpdateCount() {
+		const abs = Math.abs(this.velocity)
+		const floored = Math.floor(abs)
+		const mod = abs - floored
+		return floored + (Math.random() < mod ? 1 : 0) + 1
 	}
 }
 
 class Water extends Particle {
 	colorHSL = `hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`
+	velocity = 0
+	acceleration = 0.05
+	maxSpeed = 5
 
 	update() {
-		if (this.swapIfEmpty(0, 1)) {
-			return
+		this.updateVelocity()
+		for (let v = 0; v < this.getUpdateCount(); v++) {
+			if (this.swapIfEmpty(0, 1)) {
+			} else if (this.canSwapWith(0, 1)) {
+				this.swapParticle(0, 1)
+				this.decreaseVelocity(0.2)
+				break
+			} else if (
+				this.swapIfEmpty(1, 1) ||
+				this.swapIfEmpty(-1, 1) ||
+				this.swapIfEmpty(-1, 0) ||
+				this.swapIfEmpty(1, 0)
+			) {
+				this.decreaseVelocity(0.01)
+				break
+			}
 		}
-		if (this.canSwapWith(0, 1)) {
-			this.swapParticle(0, 1)
-		}
-		this.swapIfEmpty(1, 1) ||
-			this.swapIfEmpty(-1, 1) ||
-			this.swapIfEmpty(-1, 0) ||
-			this.swapIfEmpty(1, 0)
 	}
+
 	canSwapWith(offsetX: number, offsetY: number): boolean {
 		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Steam
+	}
+
+	updateVelocity() {
+		let newVelocity = this.velocity + this.acceleration
+
+		if (Math.abs(newVelocity) > this.maxSpeed) {
+			newVelocity = Math.sign(newVelocity) * this.maxSpeed
+		}
+
+		this.velocity = newVelocity
+	}
+
+	/** Subtract from the current velocity as a percentage */
+	decreaseVelocity(amount: number) {
+		this.velocity -= Math.max(this.velocity * amount, 0)
+	}
+
+	getUpdateCount() {
+		const abs = Math.abs(this.velocity)
+		const floored = Math.floor(abs)
+		const mod = abs - floored
+		return floored + (Math.random() < mod ? 1 : 0) + 1
 	}
 }
 
