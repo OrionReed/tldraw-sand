@@ -441,17 +441,45 @@ export class FallingSand {
 						}
 					}
 				} else {
-					// Follow the outline of the open curve
 					for (let i = 0; i < rotatedVertices.length - 1; i++) {
 						const v1 = rotatedVertices[i]
 						const v2 = rotatedVertices[i + 1]
-						const dx = v2.x - v1.x
-						const dy = v2.y - v1.y
-						const steps = Math.max(Math.abs(dx), Math.abs(dy)) / this.CELL_SIZE
-						for (let t = 0; t <= steps; t++) {
-							const x = v1.x + (dx * t) / steps
-							const y = v1.y + (dy * t) / steps
-							this.createParticlePageSpace(x, y, Geo)
+						const x2 = Math.floor(v2.x / this.CELL_SIZE)
+						const y2 = Math.floor(v2.y / this.CELL_SIZE)
+						let x1 = Math.floor(v1.x / this.CELL_SIZE)
+						let y1 = Math.floor(v1.y / this.CELL_SIZE)
+
+						const dx = Math.abs(x2 - x1)
+						const dy = Math.abs(y2 - y1)
+						const sx = x1 < x2 ? 1 : -1
+						const sy = y1 < y2 ? 1 : -1
+						let err = (dx > dy ? dx : -dy) / 2
+						let e2
+
+						while (true) {
+							this.createParticlePageSpace(
+								x1 * this.CELL_SIZE,
+								y1 * this.CELL_SIZE,
+								Geo,
+							)
+							if (x1 === x2 && y1 === y2) break
+							e2 = err
+							if (e2 > -dx) {
+								err -= dy
+								x1 += sx
+							}
+							if (e2 < dy) {
+								err += dx
+								y1 += sy
+							}
+							// Fill in the potential gap when moving diagonally
+							if (dx > 0 && dy > 0) {
+								this.createParticlePageSpace(
+									x1 * this.CELL_SIZE,
+									(y1 - sy) * this.CELL_SIZE,
+									Geo,
+								)
+							}
 						}
 					}
 				}
