@@ -52,7 +52,6 @@ class Chunk {
 	}
 
 	update(tickFrame: boolean) {
-		// TODO: WRONG, TEMP, NO REALLY
 		this.dirtyIndices.clear()
 		for (const index of this.shuffledIndices) {
 			const cell = this.cells[index]
@@ -158,6 +157,7 @@ export class FallingSand {
 	BRUSH_RADIUS = 10
 	BRUSH_CHANCE = 0.3
 	PARTICLE_TYPES = particles
+	previousPointer: { x: number; y: number } | null = { x: 0, y: 0 }
 
 	editor: Editor
 	ctx: CanvasRenderingContext2D
@@ -172,6 +172,8 @@ export class FallingSand {
 		this.viewWidth = window.innerWidth
 		this.viewHeight = window.innerHeight
 		this.world = new World()
+
+		// TEMP, create an initial chunk
 		this.world.getChunk(0, 0)
 		const canvas = document.createElement("canvas")
 		const offscreenCanvas = document.createElement("canvas")
@@ -246,9 +248,28 @@ export class FallingSand {
 		}
 	}
 
-	previousPointer: { x: number; y: number } | null = { x: 0, y: 0 }
-
 	handleInputs() {
+		const addParticlesInCircle = (
+			particle: ParticleConstructor,
+			point: { x: number; y: number },
+		) => {
+			const { x: pointerX, y: pointerY } = point
+			const radius = this.BRUSH_RADIUS
+
+			const pointerGridX = Math.floor(pointerX / this.CELL_SIZE)
+			const pointerGridY = Math.floor(pointerY / this.CELL_SIZE)
+
+			for (let y = pointerGridY - radius; y < pointerGridY + radius; y++) {
+				for (let x = pointerGridX - radius; x < pointerGridX + radius; x++) {
+					const distance = Math.sqrt(
+						(x - pointerGridX) ** 2 + (y - pointerGridY) ** 2,
+					)
+					if (distance < radius && chance(this.BRUSH_CHANCE)) {
+						this.setParticleInSandSpace(x, y, particle)
+					}
+				}
+			}
+		}
 		if (
 			this.editor.getCurrentToolId() === "sand" &&
 			this.editor.inputs.isPointing &&
@@ -272,12 +293,12 @@ export class FallingSand {
 					for (let i = 0; i < steps; i++) {
 						const x = this.previousPointer.x + (dx * i) / steps
 						const y = this.previousPointer.y + (dy * i) / steps
-						this.addBrushParticles(type, { x, y })
+						addParticlesInCircle(type, { x, y })
 					}
 				}
 			}
 			if (type) {
-				this.addBrushParticles(type, currentPointer)
+				addParticlesInCircle(type, currentPointer)
 			}
 			this.previousPointer = { x: currentPointer.x, y: currentPointer.y }
 		} else {
@@ -433,10 +454,6 @@ export class FallingSand {
 		}
 	}
 
-	worldIndex(x: number, y: number) {
-		return y * Chunk.SIZE + x
-	}
-
 	setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
 		const gridX = Math.floor(x / this.CELL_SIZE)
 		const gridY = Math.floor(y / this.CELL_SIZE)
@@ -444,33 +461,11 @@ export class FallingSand {
 	}
 
 	setParticleInSandSpace(x: number, y: number, particle: ParticleConstructor) {
-		if (x < 0 || x >= Chunk.SIZE || y < 0 || y >= Chunk.SIZE) {
-			return
-		}
+		// if (x < 0 || x >= Chunk.SIZE || y < 0 || y >= Chunk.SIZE) {
+		// 	return
+		// }
 		const chunk = this.world.getChunk(x, y)
 		const p = new particle(x, y, chunk.cells)
 		chunk.setParticle(x, y, p)
-	}
-
-	addBrushParticles(
-		particle: ParticleConstructor,
-		point: { x: number; y: number },
-	) {
-		const { x: pointerX, y: pointerY } = point
-		const radius = this.BRUSH_RADIUS
-
-		const pointerGridX = Math.floor(pointerX / this.CELL_SIZE)
-		const pointerGridY = Math.floor(pointerY / this.CELL_SIZE)
-
-		for (let y = pointerGridY - radius; y < pointerGridY + radius; y++) {
-			for (let x = pointerGridX - radius; x < pointerGridX + radius; x++) {
-				const distance = Math.sqrt(
-					(x - pointerGridX) ** 2 + (y - pointerGridY) ** 2,
-				)
-				if (distance < radius && chance(this.BRUSH_CHANCE)) {
-					this.setParticleInSandSpace(x, y, particle)
-				}
-			}
-		}
 	}
 }
