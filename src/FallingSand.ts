@@ -1,14 +1,7 @@
 import { Editor, TLCamera } from "tldraw"
-import {
-	Air,
-	Cell,
-	Geo,
-	Particle,
-	ParticleConstructor,
-	Sand,
-	particles,
-} from "./particles"
+import { Air, Geo, Particle, Sand, particles } from "./particles"
 import { chance } from "./utils"
+import { Cell, ParticleConstructor } from "./types"
 
 class Chunk {
 	static SIZE = 500
@@ -21,7 +14,7 @@ class Chunk {
 	constructor(globalX: number, globalY: number) {
 		this.globalX = globalX
 		this.globalY = globalY
-		this.fillWithAir()
+		this.initCells()
 	}
 
 	/** Check if a worldspace point is in the chunk */
@@ -46,10 +39,8 @@ class Chunk {
 		const localX = globalX - this.globalX
 		const localY = globalY - this.globalY
 		const ind = this.indexOf(localX, localY)
-		this.cells[ind] = {
-			particle,
-			dirty: true,
-		}
+		this.cells[ind].particle = particle
+		this.cells[ind].dirty = true
 		this.dirtyIndices.add(ind)
 	}
 
@@ -61,6 +52,7 @@ class Chunk {
 				cell.dirty = false
 				cell.particle.update()
 				if (this.cells[index].dirty) {
+					// console.log("dirty")
 					this.dirtyIndices.add(index)
 				}
 				cell.particle.isTickCycle = tickFrame
@@ -93,13 +85,23 @@ class Chunk {
 		return shuffledIndices
 	}
 
-	private fillWithAir() {
+	private initCells() {
 		for (let i = 0; i < Chunk.SIZE * Chunk.SIZE; i++) {
 			const x = i % Chunk.SIZE
 			const y = Math.floor(i / Chunk.SIZE)
 			this.cells[i] = {
 				particle: new Air(x, y, this.cells),
 				dirty: false,
+				neighbours: {
+					upLeft: this.cells[this.indexOf(x - 1, y - 1)],
+					up: this.cells[this.indexOf(x, y - 1)],
+					upRight: this.cells[this.indexOf(x + 1, y - 1)],
+					left: this.cells[this.indexOf(x - 1, y)],
+					right: this.cells[this.indexOf(x + 1, y)],
+					downLeft: this.cells[this.indexOf(x - 1, y + 1)],
+					down: this.cells[this.indexOf(x, y + 1)],
+					downRight: this.cells[this.indexOf(x + 1, y + 1)],
+				},
 			}
 		}
 	}

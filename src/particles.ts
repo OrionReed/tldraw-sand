@@ -1,3 +1,4 @@
+import { Cell } from "./types"
 import { hslToRgb, randRange, chance, chanceInt } from "./utils"
 
 class AirPool {
@@ -18,13 +19,6 @@ class AirPool {
 		this.airPool.push(air)
 	}
 }
-
-type Cell = {
-	particle: Particle
-	dirty: boolean
-}
-
-type ParticleConstructor = new (x: number, y: number, world: Cell[]) => Particle
 
 abstract class Particle {
 	static airPool = new AirPool()
@@ -102,18 +96,22 @@ abstract class Particle {
 			x: this.position.x + xOffset,
 			y: this.position.y + yOffset,
 		}
-		const nextCell = this.chunk[this.idx(xOffset, yOffset)]
-		nextCell.particle.position.x = this.position.x
-		nextCell.particle.position.y = this.position.y
+		const nextParticle = this.chunk[this.idx(xOffset, yOffset)].particle
+		nextParticle.position.x = this.position.x
+		nextParticle.position.y = this.position.y
+		const thisCell = this.chunk[this.idx(0, 0)]
 		this.chunk[this.idx(0, 0)] = {
-			particle: nextCell.particle,
+			particle: nextParticle,
 			dirty: true,
+			neighbours: thisCell.neighbours,
 		}
 		this.position.x = newPosition.x
 		this.position.y = newPosition.y
+		const newCell = this.chunk[this.idx(0, 0)]
 		this.chunk[this.idx(0, 0)] = {
 			particle: this,
 			dirty: true,
+			neighbours: newCell.neighbours,
 		}
 	}
 	/** Replace target with this, and current with air */
@@ -122,9 +120,10 @@ abstract class Particle {
 			x: this.position.x + xOffset,
 			y: this.position.y + yOffset,
 		}
-		const nextCell = this.chunk[this.idx(xOffset, yOffset)]
-		nextCell.particle.position.x = this.position.x
-		nextCell.particle.position.y = this.position.y
+		const currentCell = this.chunk[this.idx(0, 0)]
+		const targetCell = this.chunk[this.idx(xOffset, yOffset)]
+		targetCell.particle.position.x = this.position.x
+		targetCell.particle.position.y = this.position.y
 		this.chunk[this.idx(0, 0)] = {
 			particle: Particle.airPool.getAir(
 				this.position.x,
@@ -132,12 +131,14 @@ abstract class Particle {
 				this.chunk,
 			),
 			dirty: true,
+			neighbours: currentCell.neighbours,
 		}
 		this.position.x = newPosition.x
 		this.position.y = newPosition.y
 		this.chunk[this.idx(0, 0)] = {
 			particle: this,
 			dirty: true,
+			neighbours: targetCell.neighbours,
 		}
 	}
 }
@@ -479,14 +480,4 @@ const particles = {
 	plant: Plant,
 }
 
-export {
-	type Cell,
-	type ParticleConstructor,
-	Particle,
-	Sand,
-	Stone,
-	Water,
-	Geo,
-	Air,
-	particles,
-}
+export { Particle, Sand, Stone, Water, Geo, Air, particles }
