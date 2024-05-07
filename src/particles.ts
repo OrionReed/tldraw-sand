@@ -83,27 +83,26 @@ abstract class Particle {
 		return this.world[newY * this.worldSize + newX].particle instanceof Air
 	}
 
+	protected isInstanceOf(x: number, y: number, type: typeof Particle): boolean {
+		const newX = this.position.x + x
+		const newY = this.position.y + y
+		if (
+			newX < 0 ||
+			newX >= this.worldSize ||
+			newY < 0 ||
+			newY >= this.worldSize
+		) {
+			return false
+		}
+		return this.world[newY * this.worldSize + newX].particle instanceof type
+	}
+
 	protected swapIfEmpty(xOffset: number, yOffset: number): boolean {
 		if (this.isEmpty(xOffset, yOffset)) {
 			this.swapParticle(xOffset, yOffset)
 			return true
 		}
 		return false
-	}
-
-	/** Returns number of adjacent cells which are not air (num between 0-9) */
-	protected adjacent(xOffset: number, yOffset: number): number {
-		let count = 0
-		for (const dx of [-1, 0, 1]) {
-			for (const dy of [-1, 0, 1]) {
-				if (dx === 0 && dy === 0) continue
-				const idx = this.idx(xOffset + dx, yOffset + dy)
-				if (this.world[idx] && !(this.world[idx].particle instanceof Air)) {
-					count++
-				}
-			}
-		}
-		return count
 	}
 
 	/** Swap target with this, and current with target */
@@ -369,10 +368,8 @@ class Plant extends Particle {
 			return
 		}
 		const adjacent = this.adjacent(x, y)
-		if (adjacent > 2) {
-			if (chance(0.5)) {
-				return
-			}
+		if (adjacent > 2 && chance(0.5)) {
+			return
 		}
 		if (adjacent > 3) {
 			return
@@ -391,6 +388,25 @@ class Plant extends Particle {
 	canAbsorb(dx: number, dy: number): boolean {
 		const target = this.world[this.idx(dx, dy)]
 		return target.particle instanceof Water
+	}
+
+	protected adjacent(xOffset: number, yOffset: number): number {
+		let count = 0
+		for (const dx of [-1, 0, 1]) {
+			for (const dy of [-1, 0, 1]) {
+				if (dx === 0 && dy === 0) continue
+				const idx = this.idx(xOffset + dx, yOffset + dy)
+				const cell = this.world[idx]
+				if (
+					cell &&
+					!(cell.particle instanceof Air) &&
+					!(cell.particle instanceof Water)
+				) {
+					count++
+				}
+			}
+		}
+		return count
 	}
 
 	absorb() {
