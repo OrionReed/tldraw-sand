@@ -32,7 +32,7 @@ abstract class Particle {
 	abstract colorHSL: string
 	abstract update(): void
 
-	readonly world: Cell[]
+	readonly chunk: Cell[]
 	readonly worldSize: number
 
 	position: { x: number; y: number }
@@ -43,15 +43,15 @@ abstract class Particle {
 	constructor(x: number, y: number, world: Cell[]) {
 		this.position = { x, y }
 		this.worldSize = Math.sqrt(world.length)
-		this.world = world
+		this.chunk = world
 	}
 
 	protected getParticleAtIndex(index: number): Particle {
-		return this.world[index].particle
+		return this.chunk[index].particle
 	}
 	protected setParticleAtIndex(index: number, particle: Particle) {
-		this.world[index].particle = particle
-		this.world[index].dirty = true
+		this.chunk[index].particle = particle
+		this.chunk[index].dirty = true
 	}
 
 	get colorRGB(): { r: number; g: number; b: number } {
@@ -80,7 +80,7 @@ abstract class Particle {
 		) {
 			return false
 		}
-		return this.world[newY * this.worldSize + newX].particle instanceof Air
+		return this.chunk[newY * this.worldSize + newX].particle instanceof Air
 	}
 
 	protected isInstanceOf(x: number, y: number, type: typeof Particle): boolean {
@@ -94,7 +94,7 @@ abstract class Particle {
 		) {
 			return false
 		}
-		return this.world[newY * this.worldSize + newX].particle instanceof type
+		return this.chunk[newY * this.worldSize + newX].particle instanceof type
 	}
 
 	protected swapIfEmpty(xOffset: number, yOffset: number): boolean {
@@ -111,16 +111,16 @@ abstract class Particle {
 			x: this.position.x + xOffset,
 			y: this.position.y + yOffset,
 		}
-		const nextCell = this.world[this.idx(xOffset, yOffset)]
+		const nextCell = this.chunk[this.idx(xOffset, yOffset)]
 		nextCell.particle.position.x = this.position.x
 		nextCell.particle.position.y = this.position.y
-		this.world[this.idx(0, 0)] = {
+		this.chunk[this.idx(0, 0)] = {
 			particle: nextCell.particle,
 			dirty: true,
 		}
 		this.position.x = newPosition.x
 		this.position.y = newPosition.y
-		this.world[this.idx(0, 0)] = {
+		this.chunk[this.idx(0, 0)] = {
 			particle: this,
 			dirty: true,
 		}
@@ -131,20 +131,20 @@ abstract class Particle {
 			x: this.position.x + xOffset,
 			y: this.position.y + yOffset,
 		}
-		const nextCell = this.world[this.idx(xOffset, yOffset)]
+		const nextCell = this.chunk[this.idx(xOffset, yOffset)]
 		nextCell.particle.position.x = this.position.x
 		nextCell.particle.position.y = this.position.y
-		this.world[this.idx(0, 0)] = {
+		this.chunk[this.idx(0, 0)] = {
 			particle: Particle.airPool.getAir(
 				this.position.x,
 				this.position.y,
-				this.world,
+				this.chunk,
 			),
 			dirty: true,
 		}
 		this.position.x = newPosition.x
 		this.position.y = newPosition.y
-		this.world[this.idx(0, 0)] = {
+		this.chunk[this.idx(0, 0)] = {
 			particle: this,
 			dirty: true,
 		}
@@ -187,7 +187,7 @@ class Acid extends Particle {
 	}
 
 	canSwapWith(offsetX: number, offsetY: number): boolean {
-		const target = this.world[this.idx(offsetX, offsetY)]
+		const target = this.chunk[this.idx(offsetX, offsetY)]
 		return target?.particle instanceof Water
 	}
 
@@ -204,7 +204,7 @@ class Acid extends Particle {
 					Particle.airPool.getAir(
 						this.position.x + dx,
 						this.position.y + dy,
-						this.world,
+						this.chunk,
 					),
 				)
 			}
@@ -212,7 +212,7 @@ class Acid extends Particle {
 	}
 
 	canDissolve(dx: number, dy: number): boolean {
-		const target = this.world[this.idx(dx, dy)]
+		const target = this.chunk[this.idx(dx, dy)]
 		if (!target) return false
 		return target.particle instanceof Stone || target.particle instanceof Sand
 	}
@@ -228,7 +228,7 @@ class Sand extends Particle {
 	maxSpeed = 5
 
 	canSwapWith(offsetX: number, offsetY: number): boolean {
-		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Water
+		return this.chunk[this.idx(offsetX, offsetY)]?.particle instanceof Water
 	}
 
 	update() {
@@ -308,7 +308,7 @@ class Water extends Particle {
 	}
 
 	canSwapWith(offsetX: number, offsetY: number): boolean {
-		return this.world[this.idx(offsetX, offsetY)]?.particle instanceof Steam
+		return this.chunk[this.idx(offsetX, offsetY)]?.particle instanceof Steam
 	}
 
 	updateVelocity() {
@@ -378,7 +378,7 @@ class Plant extends Particle {
 		const newPlant = new Plant(
 			this.position.x + x,
 			this.position.y + y,
-			this.world,
+			this.chunk,
 		)
 		newPlant.energy = this.energy
 		this.setParticleAtIndex(this.idx(x, y), newPlant)
@@ -386,7 +386,7 @@ class Plant extends Particle {
 
 	// Plants absorb water to grow
 	canAbsorb(dx: number, dy: number): boolean {
-		const target = this.world[this.idx(dx, dy)]
+		const target = this.chunk[this.idx(dx, dy)]
 		return target.particle instanceof Water
 	}
 
@@ -396,7 +396,7 @@ class Plant extends Particle {
 			for (const dy of [-1, 0, 1]) {
 				if (dx === 0 && dy === 0) continue
 				const idx = this.idx(xOffset + dx, yOffset + dy)
-				const cell = this.world[idx]
+				const cell = this.chunk[idx]
 				if (
 					cell &&
 					!(cell.particle instanceof Air) &&
@@ -424,7 +424,7 @@ class Plant extends Particle {
 					Particle.airPool.getAir(
 						this.position.x + dx,
 						this.position.y + dy,
-						this.world,
+						this.chunk,
 					),
 				)
 			}
@@ -449,7 +449,7 @@ class Steam extends Particle {
 	condense() {
 		this.setParticleAtIndex(
 			this.position.y * this.worldSize + this.position.x,
-			new Water(this.position.x, this.position.y, this.world),
+			new Water(this.position.x, this.position.y, this.chunk),
 		)
 	}
 
