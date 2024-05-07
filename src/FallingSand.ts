@@ -344,7 +344,7 @@ export class FallingSand {
 					data[index + 3] = 255
 					continue
 				}
-				const color = cell.particle.colorRGB
+				const color = cell.particle.color
 				data[index] = color.r
 				data[index + 1] = color.g
 				data[index + 2] = color.b

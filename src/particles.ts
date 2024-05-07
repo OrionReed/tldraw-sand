@@ -28,8 +28,6 @@ type ParticleConstructor = new (x: number, y: number, world: Cell[]) => Particle
 
 abstract class Particle {
 	static airPool = new AirPool()
-
-	abstract colorHSL: string
 	abstract update(): void
 
 	readonly chunk: Cell[]
@@ -38,7 +36,7 @@ abstract class Particle {
 	position: { x: number; y: number }
 	isTickCycle = false
 
-	private _colorRGB?: { r: number; g: number; b: number }
+	abstract color: { r: number; g: number; b: number }
 
 	constructor(x: number, y: number, world: Cell[]) {
 		this.position = { x, y }
@@ -52,13 +50,6 @@ abstract class Particle {
 	protected setParticleAtIndex(index: number, particle: Particle) {
 		this.chunk[index].particle = particle
 		this.chunk[index].dirty = true
-	}
-
-	get colorRGB(): { r: number; g: number; b: number } {
-		if (!this._colorRGB) {
-			this._colorRGB = hslToRgb(this.colorHSL)
-		}
-		return this._colorRGB
 	}
 
 	/** Get the index relative to this particle */
@@ -154,8 +145,7 @@ abstract class Particle {
 // ---------- Particles ----------
 
 class Acid extends Particle {
-	colorHSL = `hsl(${randRange(70, 110)}, 60%, 50%)`
-
+	color = hslToRgb(`hsl(${randRange(70, 110)}, 60%, 50%)`)
 	update() {
 		// Attempt to move down or diagonally down if the spot is empty
 		if (
@@ -219,10 +209,9 @@ class Acid extends Particle {
 }
 
 class Sand extends Particle {
-	colorHSL = `hsl(${randRange(40, 45)}, ${randRange(50, 60)}%, ${randRange(
-		70,
-		80,
-	)}%)`
+	color = hslToRgb(
+		`hsl(${randRange(40, 45)}, ${randRange(50, 60)}%, ${randRange(70, 80)}%)`,
+	)
 	velocity = 0
 	acceleration = 0.05
 	maxSpeed = 5
@@ -282,7 +271,7 @@ class Sand extends Particle {
 }
 
 class Water extends Particle {
-	colorHSL = `hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`
+	color = hslToRgb(`hsl(${randRange(205, 215)}, ${randRange(80, 90)}%, 40%)`)
 	velocity = 0
 	acceleration = 0.05
 	maxSpeed = 5
@@ -336,10 +325,9 @@ class Water extends Particle {
 
 class Plant extends Particle {
 	private energy = 15
-	colorHSL = `hsl(${randRange(100, 140)}, ${randRange(30, 50)}%, ${randRange(
-		40,
-		60,
-	)}%)`
+	color = hslToRgb(
+		`hsl(${randRange(100, 140)}, ${randRange(30, 50)}%, ${randRange(40, 60)}%)`,
+	)
 
 	update() {
 		if (chance(0.15)) {
@@ -433,7 +421,7 @@ class Plant extends Particle {
 }
 
 class Steam extends Particle {
-	colorHSL = "hsl(0, 0%, 90%)"
+	color = { r: 230, g: 230, b: 230 }
 
 	update() {
 		if (chance(0.001)) {
@@ -467,15 +455,15 @@ class Steam extends Particle {
 }
 
 class Stone extends Particle {
-	colorHSL = "hsl(0, 0%, 50%)"
+	color = { r: 150, g: 150, b: 150 }
 	update() {}
 }
 class Geo extends Particle {
-	colorHSL = "hsl(0, 0%, 80%)"
+	color = { r: 200, g: 200, b: 200 }
 	update() {}
 }
 class Air extends Particle {
-	colorHSL = "hsl(0, 0%, 100%)"
+	color = { r: 255, g: 255, b: 255 }
 	update() {}
 }
 
