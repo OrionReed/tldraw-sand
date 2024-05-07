@@ -346,7 +346,7 @@ class Plant extends Particle {
 				this.tryGrow(1, 0) // right
 			}
 		}
-		if (chance(0.02)) {
+		if (chance(0.1)) {
 			this.absorb()
 		}
 	}
@@ -454,17 +454,19 @@ class Steam extends Particle {
 	}
 }
 
-class Stone extends Particle {
+abstract class Solid extends Particle {
+	abstract color: { r: number; g: number; b: number }
+	update() {}
+}
+
+class Stone extends Solid {
 	color = { r: 150, g: 150, b: 150 }
-	update() {}
 }
-class Geo extends Particle {
+class Geo extends Solid {
 	color = { r: 200, g: 200, b: 200 }
-	update() {}
 }
-class Air extends Particle {
+class Air extends Solid {
 	color = { r: 255, g: 255, b: 255 }
-	update() {}
 }
 
 const particles = {

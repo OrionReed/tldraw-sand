@@ -14,7 +14,7 @@ class Chunk {
 	static SIZE = 500
 	public readonly globalX: number
 	public readonly globalY: number
-	public dirtyIndices: Set<number> = new Set()
+	public dirtyIndices: Set<number> = new Set([0])
 	public shuffledIndices: number[] = this.generateShuffledIndices()
 	public cells: Cell[] = new Array(Chunk.SIZE * Chunk.SIZE)
 
@@ -45,10 +45,12 @@ class Chunk {
 	setParticle(globalX: number, globalY: number, particle: Particle): void {
 		const localX = globalX - this.globalX
 		const localY = globalY - this.globalY
-		this.cells[this.indexOf(localX, localY)] = {
+		const ind = this.indexOf(localX, localY)
+		this.cells[ind] = {
 			particle,
 			dirty: true,
 		}
+		this.dirtyIndices.add(ind)
 	}
 
 	update(tickFrame: boolean) {
@@ -214,8 +216,6 @@ export class FallingSand {
 		this.isTickFrame = !this.isTickFrame
 		if (!this.offscreenCtx) return
 
-		// Clear the buffer and main canvas
-		this.offscreenCtx.clearRect(0, 0, Chunk.SIZE, Chunk.SIZE)
 		this.ctx.clearRect(0, 0, this.viewWidth, this.viewHeight)
 
 		this.handleInputs()
@@ -313,7 +313,9 @@ export class FallingSand {
 
 	updateParticles() {
 		for (const chunk of this.world.getChunks()) {
-			chunk.update(this.isTickFrame)
+			if (chunk.dirtyIndices.size > 0) {
+				chunk.update(this.isTickFrame)
+			}
 		}
 	}
 
@@ -325,30 +327,35 @@ export class FallingSand {
 				Chunk.SIZE,
 				Chunk.SIZE,
 			)
-			const data = imageData.data
-			for (const cell of chunk.cells) {
-				// if (!cell.dirty) continue
-				const index =
-					(cell.particle.position.y * Chunk.SIZE + cell.particle.position.x) * 4
-				if (this.DEBUG.dirtyCells && cell.dirty) {
-					data[index] = 200
-					data[index + 1] = 0
-					data[index + 2] = 0
-					data[index + 3] = 200
-					continue
-				}
-				if (cell.particle instanceof Air) {
-					data[index] = 255
-					data[index + 1] = 255
-					data[index + 2] = 255
+			// Clear the buffer and main canvas
+			if (chunk.dirtyIndices.size > 0) {
+				this.offscreenCtx.clearRect(0, 0, Chunk.SIZE, Chunk.SIZE)
+				const data = imageData.data
+				for (const cell of chunk.cells) {
+					// if (!cell.dirty) continue
+					const index =
+						(cell.particle.position.y * Chunk.SIZE + cell.particle.position.x) *
+						4
+					if (this.DEBUG.dirtyCells && cell.dirty) {
+						data[index] = 200
+						data[index + 1] = 0
+						data[index + 2] = 0
+						data[index + 3] = 200
+						continue
+					}
+					if (cell.particle instanceof Air) {
+						data[index] = 255
+						data[index + 1] = 255
+						data[index + 2] = 255
+						data[index + 3] = 255
+						continue
+					}
+					const color = cell.particle.color
+					data[index] = color.r
+					data[index + 1] = color.g
+					data[index + 2] = color.b
 					data[index + 3] = 255
-					continue
 				}
-				const color = cell.particle.color
-				data[index] = color.r
-				data[index + 1] = color.g
-				data[index + 2] = color.b
-				data[index + 3] = 255
 			}
 			this.offscreenCtx.putImageData(imageData, 0, 0)
 		}
