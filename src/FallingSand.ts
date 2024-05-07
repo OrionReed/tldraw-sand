@@ -142,9 +142,14 @@ class World {
 	}
 
 	/** Set a particle in worldspace */
-	setParticle(x: number, y: number, particle: Particle): void {
+	createParticle(x: number, y: number, particle: ParticleConstructor): void {
+		// TEMP
+		if (x < 0 || x >= Chunk.SIZE || y < 0 || y >= Chunk.SIZE) {
+			return
+		}
 		const chunk = this.getChunk(x, y)
-		chunk.setParticle(x, y, particle)
+		const p = new particle(x, y, chunk.cells)
+		chunk.setParticle(x, y, p)
 	}
 }
 
@@ -265,7 +270,7 @@ export class FallingSand {
 						(x - pointerGridX) ** 2 + (y - pointerGridY) ** 2,
 					)
 					if (distance < radius && chance(this.BRUSH_CHANCE)) {
-						this.setParticleInSandSpace(x, y, particle)
+						this.world.createParticle(x, y, particle)
 					}
 				}
 			}
@@ -427,7 +432,7 @@ export class FallingSand {
 							const startX = Math.floor(intersections[i] / this.CELL_SIZE)
 							const endX = Math.floor(intersections[i + 1] / this.CELL_SIZE)
 							for (let x = startX; x <= endX; x++) {
-								this.setParticleInPageSpace(
+								this.createParticlePageSpace(
 									x * this.CELL_SIZE,
 									y * this.CELL_SIZE,
 									Geo,
@@ -446,7 +451,7 @@ export class FallingSand {
 						for (let t = 0; t <= steps; t++) {
 							const x = v1.x + (dx * t) / steps
 							const y = v1.y + (dy * t) / steps
-							this.setParticleInPageSpace(x, y, Geo)
+							this.createParticlePageSpace(x, y, Geo)
 						}
 					}
 				}
@@ -454,18 +459,9 @@ export class FallingSand {
 		}
 	}
 
-	setParticleInPageSpace(x: number, y: number, particle: ParticleConstructor) {
+	createParticlePageSpace(x: number, y: number, particle: ParticleConstructor) {
 		const gridX = Math.floor(x / this.CELL_SIZE)
 		const gridY = Math.floor(y / this.CELL_SIZE)
-		this.setParticleInSandSpace(gridX, gridY, particle)
-	}
-
-	setParticleInSandSpace(x: number, y: number, particle: ParticleConstructor) {
-		// if (x < 0 || x >= Chunk.SIZE || y < 0 || y >= Chunk.SIZE) {
-		// 	return
-		// }
-		const chunk = this.world.getChunk(x, y)
-		const p = new particle(x, y, chunk.cells)
-		chunk.setParticle(x, y, p)
+		this.world.createParticle(gridX, gridY, particle)
 	}
 }
