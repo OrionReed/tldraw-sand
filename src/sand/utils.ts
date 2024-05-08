@@ -11,10 +11,10 @@ export function hslToRgb(hsl: string): { r: number; g: number; b: number } {
 }
 
 class Random {
-	randoms: number[] = Array.from({ length: 256 }, () => Math.random())
+	randoms: number[] = Array.from({ length: 1024 }, () => Math.random())
 	index = 0
 	next() {
-		return this.randoms[this.index++ % 256]
+		return this.randoms[this.index++ % 1024]
 	}
 }
 

@@ -1,192 +1,16 @@
 import { Editor, TLCamera } from "tldraw"
-import { Air, Geo, Particle, Sand, particles } from "./particles"
-import { chance } from "./utils"
-import { Cell, ParticleConstructor } from "./types"
-
-class Chunk {
-	static SIZE = 500
-	public readonly globalX: number
-	public readonly globalY: number
-	public dirtyIndices: Set<number> = new Set([0])
-	public dirtyRect: {
-		minX: number
-		maxX: number
-		minY: number
-		maxY: number
-	} = {
-		minX: 0,
-		maxX: Chunk.SIZE,
-		minY: 0,
-		maxY: Chunk.SIZE,
-	}
-	public shuffledIndices: number[] = this.generateShuffledIndices()
-	public cells: Cell[] = new Array(Chunk.SIZE * Chunk.SIZE)
-
-	constructor(globalX: number, globalY: number) {
-		this.globalX = globalX
-		this.globalY = globalY
-		this.initCells()
-	}
-
-	/** Check if a worldspace point is in the chunk */
-	isInChunk(globalX: number, globalY: number): boolean {
-		return (
-			globalX >= this.globalX &&
-			globalX < this.globalX + Chunk.SIZE &&
-			globalY >= this.globalY &&
-			globalY < this.globalY + Chunk.SIZE
-		)
-	}
-
-	/** Get a particle in worldspace */
-	getParticle(globalX: number, globalY: number): Particle {
-		const localX = globalX - this.globalX
-		const localY = globalY - this.globalY
-		return this.cells[this.indexOf(localX, localY)].particle
-	}
-
-	/** Set a particle in worldspace */
-	setParticle(globalX: number, globalY: number, particle: Particle): void {
-		const localX = globalX - this.globalX
-		const localY = globalY - this.globalY
-		const ind = this.indexOf(localX, localY)
-		this.cells[ind].particle = particle
-		this.cells[ind].dirty = true
-		this.dirtyIndices.add(ind)
-	}
-
-	update(tickFrame: boolean) {
-		this.dirtyIndices.clear()
-		this.dirtyRect.minX = Infinity
-		this.dirtyRect.maxX = -Infinity
-		this.dirtyRect.minY = Infinity
-		this.dirtyRect.maxY = -Infinity
-		for (const index of this.shuffledIndices) {
-			const cell = this.cells[index]
-			if (cell.particle.isTickCycle !== tickFrame) {
-				cell.dirty = false
-				cell.particle.update()
-				if (this.cells[index].dirty) {
-					// console.log("dirty")
-					this.dirtyIndices.add(index)
-					this.growDirtyRect(cell.particle.position.x, cell.particle.position.y)
-				}
-				cell.particle.isTickCycle = tickFrame
-			}
-		}
-	}
-
-	growDirtyRect(x: number, y: number) {
-		this.dirtyRect.minX = Math.min(this.dirtyRect.minX, x)
-		this.dirtyRect.maxX = Math.max(this.dirtyRect.maxX, x)
-		this.dirtyRect.minY = Math.min(this.dirtyRect.minY, y)
-		this.dirtyRect.maxY = Math.max(this.dirtyRect.maxY, y)
-	}
-
-	private indexOf(x: number, y: number): number {
-		return y * Chunk.SIZE + x
-	}
-
-	private generateShuffledIndices() {
-		const shuffledIndices: number[] = []
-		// Helper method to shuffle an array in-place using Fisher-Yates algorithm
-		function shuffleArray(array: number[]) {
-			for (let i = array.length - 1; i > 0; i--) {
-				const j = Math.floor(Math.random() * (i + 1))
-				;[array[i], array[j]] = [array[j], array[i]]
-			}
-		}
-		// Pre-generate shuffled indices for the entire world
-		for (let y = Chunk.SIZE - 1; y >= 0; y--) {
-			const rowIndices = Array.from(
-				{ length: Chunk.SIZE },
-				(_, i) => y * Chunk.SIZE + i,
-			)
-			shuffleArray(rowIndices)
-			shuffledIndices.push(...rowIndices)
-		}
-		return shuffledIndices
-	}
-
-	private initCells() {
-		for (let i = 0; i < Chunk.SIZE * Chunk.SIZE; i++) {
-			const x = i % Chunk.SIZE
-			const y = Math.floor(i / Chunk.SIZE)
-			this.cells[i] = {
-				particle: new Air(x, y, this.cells),
-				dirty: false,
-				neighbours: {
-					upLeft: this.cells[this.indexOf(x - 1, y - 1)],
-					up: this.cells[this.indexOf(x, y - 1)],
-					upRight: this.cells[this.indexOf(x + 1, y - 1)],
-					left: this.cells[this.indexOf(x - 1, y)],
-					right: this.cells[this.indexOf(x + 1, y)],
-					downLeft: this.cells[this.indexOf(x - 1, y + 1)],
-					down: this.cells[this.indexOf(x, y + 1)],
-					downRight: this.cells[this.indexOf(x + 1, y + 1)],
-				},
-			}
-		}
-	}
-}
-
-class World {
-	private chunks: Map<string, Chunk>
-
-	constructor() {
-		this.chunks = new Map()
-	}
-
-	private getChunkKey(x: number, y: number): string {
-		const chunkX = Math.floor(x / Chunk.SIZE)
-		const chunkY = Math.floor(y / Chunk.SIZE)
-		return `${chunkX}_${chunkY}`
-	}
-
-	*getChunks() {
-		for (const chunk of this.chunks.values()) {
-			yield chunk
-		}
-	}
-
-	/** Get a chunk in worldspace */
-	getChunk(x: number, y: number): Chunk {
-		const key = this.getChunkKey(x, y)
-		if (!this.chunks.has(key)) {
-			const globalX = Math.floor(x / Chunk.SIZE) * Chunk.SIZE
-			const globalY = Math.floor(y / Chunk.SIZE) * Chunk.SIZE
-			const newChunk = new Chunk(globalX, globalY)
-			this.chunks.set(key, newChunk)
-			return newChunk
-		}
-		return this.chunks.get(key) as Chunk
-	}
-
-	/** Get a particle in worldspace */
-	getParticle(x: number, y: number): Particle {
-		const chunk = this.getChunk(x, y)
-		return chunk.getParticle(x, y)
-	}
-
-	/** Set a particle in worldspace */
-	createParticle(x: number, y: number, particle: ParticleConstructor): void {
-		// TEMP
-		if (x < 0 || x >= Chunk.SIZE || y < 0 || y >= Chunk.SIZE) {
-			return
-		}
-		const chunk = this.getChunk(x, y)
-		const p = new particle(x, y, chunk.cells)
-		chunk.setParticle(x, y, p)
-	}
-}
+import { Air, Geo, Sand, particles } from "./sand/particles"
+import { chance } from "./sand/utils"
+import { ParticleConstructor } from "./sand/types"
+import { World } from "./sand/World"
+import { Chunk } from "./sand/Chunk"
 
 export class FallingSand {
 	DEBUG = {
-		outline: true,
-		dirtyRect: true,
-		dirtyCells: false,
+		CHUNK_OUTLINE: true,
+		DIRTY_RECT: true,
+		DIRTY_CELLS: false,
 	}
-	CELL_SIZE = 2
 	BRUSH_RADIUS = 10
 	BRUSH_CHANCE = 0.3
 	PARTICLE_TYPES = particles
@@ -206,25 +30,18 @@ export class FallingSand {
 		this.viewHeight = window.innerHeight
 		this.world = new World()
 
-		// TEMP, create an initial chunk
-		this.world.getChunk(0, 0)
-		const canvas = document.createElement("canvas")
-		const offscreenCanvas = document.createElement("canvas")
-		offscreenCanvas.width = Chunk.SIZE
-		offscreenCanvas.height = Chunk.SIZE
-		canvas.width = this.viewWidth
-		canvas.height = this.viewHeight
-		const offscreenCtx = offscreenCanvas.getContext("2d", {
-			willReadFrequently: true,
-		})
-		const ctx = canvas.getContext("2d")
-		if (!ctx || !offscreenCtx) throw new Error("Could not get context")
-		ctx.imageSmoothingEnabled = false
-		document.body.appendChild(canvas)
+		const { ctx, offscreenCtx } = this.createCanvas(
+			this.viewWidth,
+			this.viewHeight,
+		)
+
 		this.offscreenCtx = offscreenCtx
 		this.ctx = ctx
 
-		/** We mirror tldraw geometry to the particle world */
+		editor.store.onAfterCreate = (next, _) => {
+			if (next.typeName !== "shape") return
+			this.updateSolidShapes()
+		}
 		editor.store.onAfterChange = (_, next, __) => {
 			if (next.typeName !== "shape") return
 			this.updateSolidShapes()
@@ -234,20 +51,73 @@ export class FallingSand {
 			this.updateSolidShapes()
 		}
 
-		this.createRandomDebugSand()
+		this.TEST_SAND()
+
 		requestAnimationFrame(() => this.tick())
 	}
 
 	tick() {
 		this.isTickFrame = !this.isTickFrame
-		if (!this.offscreenCtx) return
-
-		this.ctx.clearRect(0, 0, this.viewWidth, this.viewHeight)
 
 		this.handleInputs()
-		this.updateParticles()
-		this.drawParticles()
+		for (const chunk of this.world.getChunks()) {
+			this.updateChunk(chunk)
+			this.drawChunk(chunk)
+		}
 
+		this.drawMainCanvas()
+
+		requestAnimationFrame(() => this.tick())
+	}
+
+	private updateChunk(chunk: Chunk) {
+		if (chunk.dirtyIndices.size > 0) {
+			chunk.update(this.isTickFrame)
+		}
+	}
+
+	private drawChunk(chunk: Chunk) {
+		const imageData = this.offscreenCtx.getImageData(
+			0,
+			0,
+			Chunk.SIZE,
+			Chunk.SIZE,
+		)
+		// Clear the buffer and main canvas
+		if (chunk.dirtyIndices.size > 0) {
+			this.offscreenCtx.clearRect(0, 0, Chunk.SIZE, Chunk.SIZE)
+			const data = imageData.data
+			for (const cell of chunk.cells) {
+				const index =
+					(cell.particle.position.y * Chunk.SIZE + cell.particle.position.x) * 4
+
+				// TODO: remove this
+				if (this.DEBUG.DIRTY_CELLS && cell.dirty) {
+					data[index] = 200
+					data[index + 1] = 0
+					data[index + 2] = 0
+					data[index + 3] = 200
+					continue
+				}
+				if (cell.particle instanceof Air) {
+					data[index] = 255
+					data[index + 1] = 255
+					data[index + 2] = 255
+					data[index + 3] = 255
+					continue
+				}
+				const color = cell.particle.color
+				data[index] = color.r
+				data[index + 1] = color.g
+				data[index + 2] = color.b
+				data[index + 3] = 255
+			}
+		}
+		this.offscreenCtx.putImageData(imageData, 0, 0)
+	}
+
+	private drawMainCanvas() {
+		this.ctx.clearRect(0, 0, this.viewWidth, this.viewHeight)
 		const cam = this.editor.getCamera()
 		this.ctx.drawImage(
 			this.offscreenCtx.canvas,
@@ -257,167 +127,24 @@ export class FallingSand {
 			Chunk.SIZE, // source width and height
 			cam.x * cam.z,
 			cam.y * cam.z, // destination X, Y
-			Chunk.SIZE * this.CELL_SIZE * cam.z, // destination width
-			Chunk.SIZE * this.CELL_SIZE * cam.z, // destination height
+			Chunk.SIZE * Chunk.CELL_SIZE * cam.z, // destination width
+			Chunk.SIZE * Chunk.CELL_SIZE * cam.z, // destination height
 		)
 
-		if (this.DEBUG.outline) this.debugOutlines(cam)
-		if (this.DEBUG.dirtyRect) this.drawDebugDirtyRects(cam)
-
-		requestAnimationFrame(() => this.tick())
+		this.drawDebugOverlays(cam)
 	}
 
-	debugOutlines(cam: TLCamera) {
-		for (const chunk of this.world.getChunks()) {
-			this.ctx.strokeStyle = chunk.dirtyIndices.size > 0 ? "red" : "green"
-
-			this.ctx.strokeRect(
-				chunk.globalX + cam.x * cam.z,
-				chunk.globalY + cam.y * cam.z,
-				Chunk.SIZE * this.CELL_SIZE * cam.z,
-				Chunk.SIZE * this.CELL_SIZE * cam.z,
-			)
+	private TEST_SAND() {
+		const chunk = this.world.getChunk(0, 0)
+		for (let i = 0; i < 500; i++) {
+			const x = Math.floor(Math.random() * Chunk.SIZE)
+			const y = Math.floor(Math.random() * Chunk.SIZE)
+			const sand = new Sand(x, y, chunk.cells)
+			chunk.setParticle(x, y, sand)
 		}
 	}
 
-	handleInputs() {
-		const addParticlesInCircle = (
-			particle: ParticleConstructor,
-			point: { x: number; y: number },
-		) => {
-			const { x: pointerX, y: pointerY } = point
-			const radius = this.BRUSH_RADIUS
-
-			const pointerGridX = Math.floor(pointerX / this.CELL_SIZE)
-			const pointerGridY = Math.floor(pointerY / this.CELL_SIZE)
-
-			for (let y = pointerGridY - radius; y < pointerGridY + radius; y++) {
-				for (let x = pointerGridX - radius; x < pointerGridX + radius; x++) {
-					const distance = Math.sqrt(
-						(x - pointerGridX) ** 2 + (y - pointerGridY) ** 2,
-					)
-					if (distance < radius && chance(this.BRUSH_CHANCE)) {
-						this.world.createParticle(x, y, particle)
-					}
-				}
-			}
-		}
-		if (
-			this.editor.getCurrentToolId() === "sand" &&
-			this.editor.inputs.isPointing &&
-			this.editor.inputs.buttons.has(0)
-		) {
-			const path = this.editor.getPath() as keyof typeof this.PARTICLE_TYPES
-			const parts = path.split(".")
-			const leaf = parts[parts.length - 1]
-			const type = this.PARTICLE_TYPES[leaf as keyof typeof this.PARTICLE_TYPES]
-
-			const currentPointer = this.editor.inputs.currentPagePoint
-			if (this.previousPointer) {
-				if (
-					currentPointer.x !== this.previousPointer.x ||
-					currentPointer.y !== this.previousPointer.y
-				) {
-					const dx = currentPointer.x - this.previousPointer.x
-					const dy = currentPointer.y - this.previousPointer.y
-					const distance = Math.sqrt(dx ** 2 + dy ** 2)
-					const steps = Math.max(1, Math.floor(distance / this.CELL_SIZE))
-					for (let i = 0; i < steps; i++) {
-						const x = this.previousPointer.x + (dx * i) / steps
-						const y = this.previousPointer.y + (dy * i) / steps
-						addParticlesInCircle(type, { x, y })
-					}
-				}
-			}
-			if (type) {
-				addParticlesInCircle(type, currentPointer)
-			}
-			this.previousPointer = { x: currentPointer.x, y: currentPointer.y }
-		} else {
-			this.previousPointer = null
-		}
-	}
-
-	updateParticles() {
-		for (const chunk of this.world.getChunks()) {
-			if (chunk.dirtyIndices.size > 0) {
-				chunk.update(this.isTickFrame)
-			}
-		}
-	}
-
-	drawDebugDirtyRects(cam: TLCamera) {
-		for (const chunk of this.world.getChunks()) {
-			if (chunk.dirtyRect) {
-				this.ctx.strokeStyle = "blue"
-				this.ctx.strokeRect(
-					chunk.dirtyRect.minX * this.CELL_SIZE + cam.x * cam.z,
-					chunk.dirtyRect.minY * this.CELL_SIZE + cam.y * cam.z,
-					(chunk.dirtyRect.maxX - chunk.dirtyRect.minX) *
-						this.CELL_SIZE *
-						cam.z,
-					(chunk.dirtyRect.maxY - chunk.dirtyRect.minY) *
-						this.CELL_SIZE *
-						cam.z,
-				)
-			}
-		}
-	}
-
-	drawParticles() {
-		for (const chunk of this.world.getChunks()) {
-			const imageData = this.offscreenCtx.getImageData(
-				0,
-				0,
-				Chunk.SIZE,
-				Chunk.SIZE,
-			)
-			// Clear the buffer and main canvas
-			if (chunk.dirtyIndices.size > 0) {
-				this.offscreenCtx.clearRect(0, 0, Chunk.SIZE, Chunk.SIZE)
-				const data = imageData.data
-				for (const cell of chunk.cells) {
-					// if (!cell.dirty) continue
-					const index =
-						(cell.particle.position.y * Chunk.SIZE + cell.particle.position.x) *
-						4
-					if (this.DEBUG.dirtyCells && cell.dirty) {
-						data[index] = 200
-						data[index + 1] = 0
-						data[index + 2] = 0
-						data[index + 3] = 200
-						continue
-					}
-					if (cell.particle instanceof Air) {
-						data[index] = 255
-						data[index + 1] = 255
-						data[index + 2] = 255
-						data[index + 3] = 255
-						continue
-					}
-					const color = cell.particle.color
-					data[index] = color.r
-					data[index + 1] = color.g
-					data[index + 2] = color.b
-					data[index + 3] = 255
-				}
-			}
-			this.offscreenCtx.putImageData(imageData, 0, 0)
-		}
-	}
-
-	createRandomDebugSand() {
-		for (const chunk of this.world.getChunks()) {
-			for (let i = 0; i < 500; i++) {
-				const x = Math.floor(Math.random() * Chunk.SIZE)
-				const y = Math.floor(Math.random() * Chunk.SIZE)
-				const sand = new Sand(x, y, chunk.cells)
-				chunk.setParticle(x, y, sand)
-			}
-		}
-	}
-
-	updateSolidShapes() {
+	private updateSolidShapes() {
 		for (const chunk of this.world.getChunks()) {
 			for (const cell of chunk.cells) {
 				const { particle } = cell
@@ -461,8 +188,8 @@ export class FallingSand {
 
 					// Iterate over the bounding box and fill the shape
 					for (
-						let y = Math.floor(minY / this.CELL_SIZE);
-						y <= Math.floor(maxY / this.CELL_SIZE);
+						let y = Math.floor(minY / Chunk.CELL_SIZE);
+						y <= Math.floor(maxY / Chunk.CELL_SIZE);
 						y++
 					) {
 						const intersections: number[] = []
@@ -470,23 +197,23 @@ export class FallingSand {
 							const v1 = rotatedVertices[i]
 							const v2 = rotatedVertices[(i + 1) % rotatedVertices.length]
 							if (
-								(v1.y < y * this.CELL_SIZE && v2.y >= y * this.CELL_SIZE) ||
-								(v2.y < y * this.CELL_SIZE && v1.y >= y * this.CELL_SIZE)
+								(v1.y < y * Chunk.CELL_SIZE && v2.y >= y * Chunk.CELL_SIZE) ||
+								(v2.y < y * Chunk.CELL_SIZE && v1.y >= y * Chunk.CELL_SIZE)
 							) {
 								const x =
 									v1.x +
-									((y * this.CELL_SIZE - v1.y) / (v2.y - v1.y)) * (v2.x - v1.x)
+									((y * Chunk.CELL_SIZE - v1.y) / (v2.y - v1.y)) * (v2.x - v1.x)
 								intersections.push(x)
 							}
 						}
 						intersections.sort((a, b) => a - b)
 						for (let i = 0; i < intersections.length; i += 2) {
-							const startX = Math.floor(intersections[i] / this.CELL_SIZE)
-							const endX = Math.floor(intersections[i + 1] / this.CELL_SIZE)
+							const startX = Math.floor(intersections[i] / Chunk.CELL_SIZE)
+							const endX = Math.floor(intersections[i + 1] / Chunk.CELL_SIZE)
 							for (let x = startX; x <= endX; x++) {
 								this.createParticlePageSpace(
-									x * this.CELL_SIZE,
-									y * this.CELL_SIZE,
+									x * Chunk.CELL_SIZE,
+									y * Chunk.CELL_SIZE,
 									Geo,
 								)
 							}
@@ -496,10 +223,10 @@ export class FallingSand {
 					for (let i = 0; i < rotatedVertices.length - 1; i++) {
 						const v1 = rotatedVertices[i]
 						const v2 = rotatedVertices[i + 1]
-						const x2 = Math.floor(v2.x / this.CELL_SIZE)
-						const y2 = Math.floor(v2.y / this.CELL_SIZE)
-						let x1 = Math.floor(v1.x / this.CELL_SIZE)
-						let y1 = Math.floor(v1.y / this.CELL_SIZE)
+						const x2 = Math.floor(v2.x / Chunk.CELL_SIZE)
+						const y2 = Math.floor(v2.y / Chunk.CELL_SIZE)
+						let x1 = Math.floor(v1.x / Chunk.CELL_SIZE)
+						let y1 = Math.floor(v1.y / Chunk.CELL_SIZE)
 
 						const dx = Math.abs(x2 - x1)
 						const dy = Math.abs(y2 - y1)
@@ -510,8 +237,8 @@ export class FallingSand {
 
 						while (true) {
 							this.createParticlePageSpace(
-								x1 * this.CELL_SIZE,
-								y1 * this.CELL_SIZE,
+								x1 * Chunk.CELL_SIZE,
+								y1 * Chunk.CELL_SIZE,
 								Geo,
 							)
 							if (x1 === x2 && y1 === y2) break
@@ -527,8 +254,8 @@ export class FallingSand {
 							// Fill in the potential gap when moving diagonally
 							if (dx > 0 && dy > 0) {
 								this.createParticlePageSpace(
-									x1 * this.CELL_SIZE,
-									(y1 - sy) * this.CELL_SIZE,
+									x1 * Chunk.CELL_SIZE,
+									(y1 - sy) * Chunk.CELL_SIZE,
 									Geo,
 								)
 							}
@@ -539,9 +266,116 @@ export class FallingSand {
 		}
 	}
 
-	createParticlePageSpace(x: number, y: number, particle: ParticleConstructor) {
-		const gridX = Math.floor(x / this.CELL_SIZE)
-		const gridY = Math.floor(y / this.CELL_SIZE)
+	handleInputs() {
+		const addParticlesInCircle = (
+			particle: ParticleConstructor,
+			point: { x: number; y: number },
+		) => {
+			const { x: pointerX, y: pointerY } = point
+			const radius = this.BRUSH_RADIUS
+
+			const pointerGridX = Math.floor(pointerX / Chunk.CELL_SIZE)
+			const pointerGridY = Math.floor(pointerY / Chunk.CELL_SIZE)
+
+			for (let y = pointerGridY - radius; y < pointerGridY + radius; y++) {
+				for (let x = pointerGridX - radius; x < pointerGridX + radius; x++) {
+					const distance = Math.sqrt(
+						(x - pointerGridX) ** 2 + (y - pointerGridY) ** 2,
+					)
+					if (distance < radius && chance(this.BRUSH_CHANCE)) {
+						this.world.createParticle(x, y, particle)
+					}
+				}
+			}
+		}
+		if (
+			this.editor.getCurrentToolId() === "sand" &&
+			this.editor.inputs.isPointing &&
+			this.editor.inputs.buttons.has(0)
+		) {
+			const path = this.editor.getPath() as keyof typeof this.PARTICLE_TYPES
+			const parts = path.split(".")
+			const leaf = parts[parts.length - 1]
+			const type = this.PARTICLE_TYPES[leaf as keyof typeof this.PARTICLE_TYPES]
+
+			const currentPointer = this.editor.inputs.currentPagePoint
+			if (this.previousPointer) {
+				if (
+					currentPointer.x !== this.previousPointer.x ||
+					currentPointer.y !== this.previousPointer.y
+				) {
+					const dx = currentPointer.x - this.previousPointer.x
+					const dy = currentPointer.y - this.previousPointer.y
+					const distance = Math.sqrt(dx ** 2 + dy ** 2)
+					const steps = Math.max(1, Math.floor(distance / Chunk.CELL_SIZE))
+					for (let i = 0; i < steps; i++) {
+						const x = this.previousPointer.x + (dx * i) / steps
+						const y = this.previousPointer.y + (dy * i) / steps
+						addParticlesInCircle(type, { x, y })
+					}
+				}
+			}
+			if (type) {
+				addParticlesInCircle(type, currentPointer)
+			}
+			this.previousPointer = { x: currentPointer.x, y: currentPointer.y }
+		} else {
+			this.previousPointer = null
+		}
+	}
+
+	private createParticlePageSpace(
+		x: number,
+		y: number,
+		particle: ParticleConstructor,
+	) {
+		const gridX = Math.floor(x / Chunk.CELL_SIZE)
+		const gridY = Math.floor(y / Chunk.CELL_SIZE)
 		this.world.createParticle(gridX, gridY, particle)
+	}
+
+	private createCanvas(width: number, height: number) {
+		const canvas = document.createElement("canvas")
+		const offscreenCanvas = document.createElement("canvas")
+		offscreenCanvas.width = Chunk.SIZE
+		offscreenCanvas.height = Chunk.SIZE
+		canvas.width = width
+		canvas.height = height
+		const offscreenCtx = offscreenCanvas.getContext("2d", {
+			willReadFrequently: true,
+		})
+		const ctx = canvas.getContext("2d")
+		if (!ctx || !offscreenCtx) throw new Error("Could not get context")
+		ctx.imageSmoothingEnabled = false
+		document.body.appendChild(canvas)
+		return { ctx, offscreenCtx }
+	}
+
+	private drawDebugOverlays(cam: TLCamera) {
+		for (const chunk of this.world.getChunks()) {
+			if (this.DEBUG.DIRTY_RECT && chunk.dirtyRect) {
+				this.ctx.strokeStyle = "blue"
+				this.ctx.strokeRect(
+					(chunk.dirtyRect.minX * Chunk.CELL_SIZE + cam.x) * cam.z,
+					(chunk.dirtyRect.minY * Chunk.CELL_SIZE + cam.y) * cam.z,
+					(chunk.dirtyRect.maxX - chunk.dirtyRect.minX + 1) *
+						Chunk.CELL_SIZE *
+						cam.z,
+					(chunk.dirtyRect.maxY - chunk.dirtyRect.minY + 1) *
+						Chunk.CELL_SIZE *
+						cam.z,
+				)
+			}
+
+			if (this.DEBUG.CHUNK_OUTLINE) {
+				this.ctx.strokeStyle = chunk.dirtyIndices.size > 0 ? "red" : "green"
+				this.ctx.strokeRect(
+					chunk.globalX + cam.x * cam.z,
+					chunk.globalY + cam.y * cam.z,
+					Chunk.SIZE * Chunk.CELL_SIZE * cam.z,
+					Chunk.SIZE * Chunk.CELL_SIZE * cam.z,
+				)
+			}
+		}
 	}
 }

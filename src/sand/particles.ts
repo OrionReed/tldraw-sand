@@ -1,34 +1,16 @@
 import { Cell } from "./types"
 import { hslToRgb, randRange, chance, chanceInt } from "./utils"
-
-class AirPool {
-	private airPool: Air[] = []
-
-	getAir(x: number, y: number, world: Cell[]): Air {
-		if (this.airPool.length > 0) {
-			const air = this.airPool.pop()
-			if (!air) return new Air(x, y, world)
-			air.position.x = x
-			air.position.y = y
-			return air
-		}
-		return new Air(x, y, world)
-	}
-
-	releaseAir(air: Air) {
-		this.airPool.push(air)
-	}
-}
+import { ParticlePool } from "./ParticlePool"
 
 abstract class Particle {
-	static airPool = new AirPool()
+	static airPool = new ParticlePool<Air>(() => new Air(0, 0, []))
 	abstract update(): void
 
 	readonly chunk: Cell[]
 	readonly worldSize: number
 
 	position: { x: number; y: number }
-	isTickCycle = false
+	isTickFrame = false
 
 	abstract color: { r: number; g: number; b: number }
 
@@ -125,7 +107,7 @@ abstract class Particle {
 		targetCell.particle.position.x = this.position.x
 		targetCell.particle.position.y = this.position.y
 		this.chunk[this.idx(0, 0)] = {
-			particle: Particle.airPool.getAir(
+			particle: Particle.airPool.get(
 				this.position.x,
 				this.position.y,
 				this.chunk,
@@ -192,7 +174,7 @@ class Acid extends Particle {
 			if (this.canDissolve(dx, dy)) {
 				this.setParticleAtIndex(
 					this.idx(dx, dy),
-					Particle.airPool.getAir(
+					Particle.airPool.get(
 						this.position.x + dx,
 						this.position.y + dy,
 						this.chunk,
@@ -410,7 +392,7 @@ class Plant extends Particle {
 				this.energy++
 				this.setParticleAtIndex(
 					this.idx(dx, dy),
-					Particle.airPool.getAir(
+					Particle.airPool.get(
 						this.position.x + dx,
 						this.position.y + dy,
 						this.chunk,
