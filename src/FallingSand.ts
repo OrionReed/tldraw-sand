@@ -71,7 +71,7 @@ export class FallingSand {
 	}
 
 	private updateChunk(chunk: Chunk) {
-		if (chunk.dirtyIndices.size > 0) {
+		if (chunk.isDirty) {
 			chunk.update(this.isTickFrame)
 		}
 	}
@@ -84,7 +84,7 @@ export class FallingSand {
 			Chunk.SIZE,
 		)
 		// Clear the buffer and main canvas
-		if (chunk.dirtyIndices.size > 0) {
+		if (chunk.isDirty) {
 			this.offscreenCtx.clearRect(0, 0, Chunk.SIZE, Chunk.SIZE)
 			const data = imageData.data
 			for (const cell of chunk.cells) {
@@ -368,7 +368,7 @@ export class FallingSand {
 			}
 
 			if (this.DEBUG.CHUNK_OUTLINE) {
-				this.ctx.strokeStyle = chunk.dirtyIndices.size > 0 ? "red" : "green"
+				this.ctx.strokeStyle = chunk.isDirty ? "red" : "green"
 				this.ctx.strokeRect(
 					chunk.globalX + cam.x * cam.z,
 					chunk.globalY + cam.y * cam.z,

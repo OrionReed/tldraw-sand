@@ -6,7 +6,6 @@ export class Chunk {
 	static CELL_SIZE = 2
 	public readonly globalX: number
 	public readonly globalY: number
-	public dirtyIndices: Set<number> = new Set([0])
 	public dirtyRect: {
 		minX: number
 		maxX: number
@@ -20,6 +19,9 @@ export class Chunk {
 	}
 	public shuffledIndices: number[] = this.generateShuffledIndices()
 	public cells: Cell[] = new Array(Chunk.SIZE * Chunk.SIZE)
+	public get isDirty(): boolean {
+		return this.dirtyRect.minX !== Infinity
+	}
 
 	constructor(globalX: number, globalY: number) {
 		this.globalX = globalX
@@ -51,11 +53,11 @@ export class Chunk {
 		const ind = this.indexOf(localX, localY)
 		this.cells[ind].particle = particle
 		this.cells[ind].dirty = true
-		this.dirtyIndices.add(ind)
+		this.growDirtyRect(localX, localY)
 	}
 
 	update(isTickFrame: boolean) {
-		this.dirtyIndices.clear()
+		// this.dirtyIndices.clear()
 		this.dirtyRect.minX = Infinity
 		this.dirtyRect.maxX = -Infinity
 		this.dirtyRect.minY = Infinity
@@ -66,8 +68,6 @@ export class Chunk {
 				cell.dirty = false
 				cell.particle.update()
 				if (this.cells[index].dirty) {
-					// console.log("dirty")
-					this.dirtyIndices.add(index)
 					this.growDirtyRect(cell.particle.position.x, cell.particle.position.y)
 				}
 				cell.particle.isTickFrame = isTickFrame
