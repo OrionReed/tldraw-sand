@@ -8,6 +8,17 @@ class Chunk {
 	public readonly globalX: number
 	public readonly globalY: number
 	public dirtyIndices: Set<number> = new Set([0])
+	public dirtyRect: {
+		minX: number
+		maxX: number
+		minY: number
+		maxY: number
+	} = {
+		minX: 0,
+		maxX: Chunk.SIZE,
+		minY: 0,
+		maxY: Chunk.SIZE,
+	}
 	public shuffledIndices: number[] = this.generateShuffledIndices()
 	public cells: Cell[] = new Array(Chunk.SIZE * Chunk.SIZE)
 
@@ -46,6 +57,10 @@ class Chunk {
 
 	update(tickFrame: boolean) {
 		this.dirtyIndices.clear()
+		this.dirtyRect.minX = Infinity
+		this.dirtyRect.maxX = -Infinity
+		this.dirtyRect.minY = Infinity
+		this.dirtyRect.maxY = -Infinity
 		for (const index of this.shuffledIndices) {
 			const cell = this.cells[index]
 			if (cell.particle.isTickCycle !== tickFrame) {
@@ -54,10 +69,18 @@ class Chunk {
 				if (this.cells[index].dirty) {
 					// console.log("dirty")
 					this.dirtyIndices.add(index)
+					this.growDirtyRect(cell.particle.position.x, cell.particle.position.y)
 				}
 				cell.particle.isTickCycle = tickFrame
 			}
 		}
+	}
+
+	growDirtyRect(x: number, y: number) {
+		this.dirtyRect.minX = Math.min(this.dirtyRect.minX, x)
+		this.dirtyRect.maxX = Math.max(this.dirtyRect.maxX, x)
+		this.dirtyRect.minY = Math.min(this.dirtyRect.minY, y)
+		this.dirtyRect.maxY = Math.max(this.dirtyRect.maxY, y)
 	}
 
 	private indexOf(x: number, y: number): number {
@@ -160,6 +183,7 @@ class World {
 export class FallingSand {
 	DEBUG = {
 		outline: true,
+		dirtyRect: true,
 		dirtyCells: false,
 	}
 	CELL_SIZE = 2
@@ -238,6 +262,7 @@ export class FallingSand {
 		)
 
 		if (this.DEBUG.outline) this.debugOutlines(cam)
+		if (this.DEBUG.dirtyRect) this.drawDebugDirtyRects(cam)
 
 		requestAnimationFrame(() => this.tick())
 	}
@@ -317,6 +342,24 @@ export class FallingSand {
 		for (const chunk of this.world.getChunks()) {
 			if (chunk.dirtyIndices.size > 0) {
 				chunk.update(this.isTickFrame)
+			}
+		}
+	}
+
+	drawDebugDirtyRects(cam: TLCamera) {
+		for (const chunk of this.world.getChunks()) {
+			if (chunk.dirtyRect) {
+				this.ctx.strokeStyle = "blue"
+				this.ctx.strokeRect(
+					chunk.dirtyRect.minX * this.CELL_SIZE + cam.x * cam.z,
+					chunk.dirtyRect.minY * this.CELL_SIZE + cam.y * cam.z,
+					(chunk.dirtyRect.maxX - chunk.dirtyRect.minX) *
+						this.CELL_SIZE *
+						cam.z,
+					(chunk.dirtyRect.maxY - chunk.dirtyRect.minY) *
+						this.CELL_SIZE *
+						cam.z,
+				)
 			}
 		}
 	}
