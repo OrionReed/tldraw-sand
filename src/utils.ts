@@ -10,13 +10,23 @@ export function hslToRgb(hsl: string): { r: number; g: number; b: number } {
 	return { r: f(0), g: f(8), b: f(4) }
 }
 
+class Random {
+	randoms: number[] = Array.from({ length: 256 }, () => Math.random())
+	index = 0
+	next() {
+		return this.randoms[this.index++ % 256]
+	}
+}
+
+const random = new Random()
+
 export function chance(percent: number): boolean {
-	return Math.random() < percent
+	return random.next() < percent
 }
 export function chanceInt(max: number): number {
-	return Math.floor(Math.random() * max)
+	return Math.floor(random.next() * max)
 }
 
 export function randRange(min: number, max: number): number {
-	return Math.floor(Math.random() * (max - min + 1) + min)
+	return Math.floor(random.next() * (max - min + 1) + min)
 }
